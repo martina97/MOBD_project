@@ -3,7 +3,9 @@
 # Press Maiusc+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 
-import learn as learn
+#import learn as learn
+
+import sklearn
 import numpy
 import pandas
 import tensorflow
