@@ -1,0 +1,2 @@
+
+1. trovare con pandas un modo migliore per rimpiazzare i valori mancanti 
