@@ -12,6 +12,9 @@ import tensorflow as tf
 import matplotlib
 from matplotlib import pyplot as plt
 
+import seaborn as sns
+
+
 def print_hi(name):
     # Use a breakpoint in the code line below to debug your script.
     print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
@@ -71,8 +74,17 @@ def openFiles(datasetPath):
     summary_test = get_na_count(test_dataset)
     print(summary_test)
 
+    '''
+    # Visualizziamo i dati tramite il pairplot seaborn le due classi di colore diverso usando l'attributo 'hue'
+    sns.pairplot(dataset, hue='F1')
+    '''
 
+    #myList = np.random.normal(size=1000)
 
+    plt.hist(train_dataset['F1'], bins=40, align='mid')
+
+    plt.ylabel('Probability')
+    plt.show()
 
 
 
