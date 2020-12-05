@@ -240,7 +240,6 @@ def get_na_count(dataset):
 
 
 def main():
-    print("tensorflow: ", tf.__version__)
 
     datasetPath = './training_set.csv'
     #knnDetection()
