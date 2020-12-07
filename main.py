@@ -47,6 +47,8 @@ def openFiles(datasetPath):
     train_dataset=naDetection(train_dataset)
     test_dataset=naDetection(test_dataset)
 
+    train_dataset.to_csv(r'D:\Universita\magistrale\MOBD\csv\TrainingSet iniziale.csv', header=True, sep = ';')
+
     # controlliamo nuovamente che train e test siano senza n/a
     summary_train = get_na_count(train_dataset)
     print(summary_train)
@@ -60,17 +62,199 @@ def openFiles(datasetPath):
     #data2 = [5, 39, 75, 79, 85, 90, 91, 93, 93, 98]
 
 
-    dataColumn = np.array([])
 
     #inserisco istanze della colonna in una lista
     print("size colonna: ",train_dataset['F1'].size)
 
-    for i in train_dataset['F1']:
-        dataColumn = np.append(dataColumn,i)
+    for j in train_dataset.columns:
+        print("j = ", j)
+        dataColumn = np.array([])
 
+        for i in train_dataset[j]:
+            dataColumn = np.append(dataColumn,i)
+
+        title = j + '  before KNN'
+        #print("\n\ndata2: ", dataColumn, "\n\n")
+        #outliers = createBoxplot(dataColumn, title)
+        #outliers = prova_box(train_dataset,j, "before KNN")
+        outliers = prova_box2(dataColumn, "  before KNN",j)
+
+        #knnDetection(dataColumn,outliers,j,train_dataset)
+        knnDetection2(outliers, j, train_dataset)
+
+        #knnDetection3(dataColumn, outliers, j, train_dataset)
+
+    train_dataset.to_csv(r'D:\Universita\magistrale\MOBD\csv\TrainingSet finale.csv', header=True, sep = ';')
+
+    '''  
     title = 'F1 before KNN'
     print("\n\ndata2: ",dataColumn,"\n\n")
     createBoxplot(dataColumn,title)
+    '''
+
+def prova_box(train_dataset, colName, title):
+    print("\n\nSONO IN PROVA BOX PORCO DUE")
+    sns.boxplot(x=train_dataset[colName]).set_title(title)
+    print("vaffanculo")
+    count = 0
+    threshold = 3
+    mean = np.mean(train_dataset[colName])
+    std = np.std(train_dataset[colName])
+    outliers = []
+    for i in train_dataset[colName]:
+        #print("vaffanculo2")
+
+        z = (i - mean) / std
+        if z > threshold:
+            print("vaffanculo3")
+
+            count = count + 1
+            outliers.append(i)
+            print("-- outlier n ", count, ":  ", outliers[count - 1])
+    return outliers
+
+def prova_box2(dataColumn,title, colName) :
+    #print("\n\nSONO IN PROVA BOX PORCO DUE")
+
+
+    sns.boxplot(x=dataColumn).set_title(colName + title)
+    '''
+    fig, ax = plt.subplots()
+    ax.set_title(colName+title)
+    ax.scatter(dataColumn,dataColumn)
+    '''
+
+    #print("vaffanculo")
+
+
+
+    '''
+    fig1, ax = plt.subplots()
+    ax.set_title(colName+title)
+    ax.boxplot(dataColumn)
+    '''
+
+    count = 0
+    threshold = 3
+    mean = np.mean(dataColumn)
+    std = np.std(dataColumn)
+    outliers = []
+    for i in dataColumn:
+        # print("vaffanculo2")
+
+        z = (i - mean) / std
+        if z > threshold:
+            #print("vaffanculo3")
+
+            count = count + 1
+            outliers.append(i)
+            print("-- outlier n ", count, ":  ", outliers[count - 1])
+
+
+
+    plt.show()
+    return outliers
+
+
+
+def knnDetection2(outliers, colName, train_dataset):
+    # data2 = np.array([18, 19, 19, 20, 20, 20, 20, 20, 21, 21, 21, 22, 23, 25, 28, 30, 31, 37])
+    # data2 = np.array([5, 39, 75, 79, 85, 90, 91, 93, 93, 98])
+    title = 'before KNN'
+
+    # outliers = createBoxplot(data2, title)
+
+    # copio dataset in lista y e tolgo outliers
+    y = train_dataset[colName].copy()
+    # print("y = ", y)
+    for i in outliers:
+        # print ("i= ",i)
+        # y.remove(i)
+        y = y[y != i]
+        # print("y = ", y)
+
+    # print("y = ", y)
+    # print("data2: ", data2)
+
+    # ============ FINORA ABBIAMO BOXPLOT ==========
+    # TODO: capire come sceglire K
+    # TODO: cambiare anche N/A con funzione che implementa algoritmo KNN
+
+    # ORA ABBIAMO TOLTO E SOSTITUITO OUTLIER : USIAMO KNN !!!!!
+
+    lenX = len(train_dataset[colName]) - len(outliers)
+    rows = lenX
+    col = 1
+    X = [[0 for i in range(col)] for j in range(rows)]  # inizializzo X come lista 2D
+    count_X_position = 0
+
+    # metto dati nella lista 2D "X"
+
+    # per creare lista 2D "X" per poterla usare in KNN in cui devono andarci tutti i valori di data2 tranne outliers
+    # così poi a KNN gli do X senza outlier che gli passo separatamente, in modo da calcolare media dei k vicini e sostituirli
+    for i in y:
+        # print("count X = ", count_X_position,"     data2_elem = ",i)
+        X[count_X_position][0] = i
+        # print("X[count_X_position][0] = ", X[count_X_position][0])
+        count_X_position = count_X_position + 1
+
+    # print("X = ", X)
+
+    '''
+
+      X = [[18],  [19], [19], [20], [20], [20], [20], [20], [21], [21], [21], [22], [23], [25], [28], [30], [31]]
+    y = [18,19,19,20,20,20,20,20,21,21,21,22,23,25,28,30,31]
+
+    '''
+
+    # fit
+    neigh = KNeighborsRegressor(n_neighbors=3)
+    neigh.fit(X, y)
+
+    # predict
+    result = []
+    for i in outliers:
+        result.append(neigh.predict([[i]]))
+    # print("result: ", result[0][0],result[1][0])
+    print("result: ", result)
+
+
+    #train_dataset[colName].to_csv(r'D:\Universita\magistrale\MOBD\csv\TrainingSetPrimaKNN' +colName+'.csv', header=True, sep = ';')
+
+    # sostuituiamo i risultati con gli outliers nel dataset originario
+    for i in outliers:
+        for j in result:
+            train_dataset[colName][train_dataset[colName] == i] = (j)
+            # print("data2: ", data2)
+
+    #print("data2: ", data2)
+
+    # ============= BOXPLOT X VEDERE CHE FUNZIONA ===========
+    ''' 
+    title = colName + '  after KNN'
+    if len(createBoxplot(data2, title)) == 0:
+        print("KNN terminato, outliers sostituiti")
+        return 0
+
+    '''
+
+
+    #train_dataset[colName].to_csv(r'D:\Universita\magistrale\MOBD\csv\TrainingSetDopoKNN' +colName+'.csv', header=True, sep = ';')
+
+    # CALCOLO OUTLIERS DEL TRAINING SET FINALE DELLA SIGNOLA FEATURE
+    outliers = prova_box2(train_dataset[colName], "  after KNN", colName)
+    if len(outliers) == 0:
+        print(colName, ": KNN terminato, outliers sostituiti\n\n")
+        return 0
+
+
+
+    '''
+    if len(prova_box2(train_dataset[colName], "  after KNN", colName)) == 0:
+        print(colName, ": KNN terminato, outliers sostituiti\n\n")
+        return 0
+    '''
+
 
 
 
@@ -111,6 +295,8 @@ def createBoxplot(dataset, title):
     ax.set_title(title)
     ax.boxplot(dataset)
 
+
+
     median = np.median(dataset)
     q3 = np.percentile(dataset, 75)  # upper_quartile
     q1 = np.percentile(dataset, 25)  # lower_quartile
@@ -126,6 +312,7 @@ def createBoxplot(dataset, title):
     print("l: ", l, "    r:", r)
 
     #trovo gli outliers e li inserisco in una lista
+    '''
     outliers = []
     count = 0
     for i in dataset:
@@ -133,6 +320,20 @@ def createBoxplot(dataset, title):
             count = count + 1
             outliers.append(i)
             print("-- outlier n ", count, ":  ", outliers[count - 1])
+    '''
+    count = 0
+    threshold = 10
+    mean = np.mean(dataset)
+    std = np.std(dataset)
+    outliers = []
+    for i in dataset:
+        z = (i - mean) / std
+        if z > threshold:
+            count = count + 1
+            outliers.append(i)
+            print("-- outlier n ", count, ":  ", outliers[count - 1])
+
+    #print('outlier in dataset is', outliers)
 
     ax.set_xlim(right=1.5)
     plt.show()
@@ -141,13 +342,13 @@ def createBoxplot(dataset, title):
 
 
 
-def knnDetection():
+def knnDetection(data2,outliers, colName, train_dataset):
 
     #data2 = np.array([18, 19, 19, 20, 20, 20, 20, 20, 21, 21, 21, 22, 23, 25, 28, 30, 31, 37])
-    data2 = np.array([5, 39, 75, 79, 85, 90, 91, 93, 93, 98])
+    #data2 = np.array([5, 39, 75, 79, 85, 90, 91, 93, 93, 98])
     title = 'before KNN'
 
-    outliers = createBoxplot(data2, title)
+    #outliers = createBoxplot(data2, title)
 
     # copio dataset in lista y e tolgo outliers
     y = data2.copy()
@@ -158,8 +359,8 @@ def knnDetection():
         y = y[y != i]
         #print("y = ", y)
 
-    print("y = ", y)
-    print("data2: ", data2)
+    #print("y = ", y)
+    #print("data2: ", data2)
 
     # ============ FINORA ABBIAMO BOXPLOT ==========
     # TODO: capire come sceglire K
@@ -185,7 +386,7 @@ def knnDetection():
         count_X_position = count_X_position + 1
 
 
-    print("X = ", X)
+    #print("X = ", X)
 
 
 
@@ -205,24 +406,31 @@ def knnDetection():
     result = []
     for i in outliers:
         result.append(neigh.predict([[i]]))
-    print("result: ", result[0][0],result[1][0])
+    #print("result: ", result[0][0],result[1][0])
+    print("result: ", result)
 
 
     #sostuituiamo i risultati con gli outliers nel dataset originario
     for i in outliers:
         for j in result:
             data2[data2 == i] = (j)
-            print("data2: ", data2)
+            #print("data2: ", data2)
 
 
+    print("data2: ", data2)
 
     # ============= BOXPLOT X VEDERE CHE FUNZIONA ===========
-    title = 'after KNN'
+
+    title = colName + '  after KNN'
     if len(createBoxplot(data2,title)) == 0:
         print("KNN terminato, outliers sostituiti")
         return 0
 
-
+    '''
+    if len(prova_box(train_dataset, colName)) == 0:
+        print("KNN terminato, outliers sostituiti")
+        return 0
+    '''
 
 
 
