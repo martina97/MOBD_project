@@ -11,8 +11,8 @@ from sklearn.neighbors import KNeighborsRegressor
 
 import seaborn as sns
 
-#method = "IQR"
-method = "ZSCORE"
+method = "IQR"
+#method = "ZSCORE"
 
 class Dataset:
   def __init__(self, name, data):
@@ -51,11 +51,6 @@ def openFiles(dataset, train_x, test_x, train_y, test_y):
     # calcoliamo il numero di valori mancanti su train e test (n/a)
     naMean(train_x,test_x)
 
-    '''
-    #method = "IQR"
-    method = "ZSCORE"
-    '''
-
     #outliers detection
     outlierDetection(train_x, test_x)
 
@@ -68,24 +63,6 @@ def outlierDetection(train_x, test_x):
     for colName in train_x.data.columns:
         print("\n\ncolName = ", colName)
 
-        '''
-        #aggiungo gli elementi del training set apaprtenenti alla colonna 'colName' nell'array dataColumnTrain
-        train_x.dataColumn = np.array([])
-
-        for colElement in train_x.data[colName]:
-            train_x.dataColumn = np.append(train_x.dataColumn, colElement)
-
-
-        # aggiungo gli elementi del test set apaprtenenti alla colonna 'colName' nell'array dataColumnTest
-        test_x.dataColumn = np.array([])
-
-        for colElement in test_x.data[colName]:
-            test_x.dataColumn = np.append(test_x.dataColumn, colElement)
-        
-        '''
-
-        #print("\n\ndata2: ", dataColumn, "\n\n")
-
         title = colName + ' before KNN'
 
         #metodi diversi per il calcolo di outliers sia per train_x che per test_x
@@ -96,6 +73,15 @@ def outlierDetection(train_x, test_x):
             outIQR(train_x,"train" + title,colName)
             print("\n------ test ------")
             outIQR(test_x,"test" + title,colName)
+
+            fig1, ax = plt.subplots()
+            ax.set_title(colName + " before KNN")
+            ax.set_xticklabels(['TRAIN', 'TEST'])
+
+            ax.boxplot([train_x.dataColumn, test_x.dataColumn])
+            plt.show()
+
+            
 
 
         if(method == "ZSCORE"):
@@ -120,6 +106,12 @@ def outlierDetection(train_x, test_x):
         substituteOutliers(test_x, colName)
         checkOutliersAfterKNN(test_x, colName)
 
+        fig1, ax = plt.subplots()
+        ax.set_title(colName + " after KNN")
+        ax.set_xticklabels(['TRAIN', 'TEST'])
+
+        ax.boxplot([train_x.dataColumn, test_x.dataColumn])
+        plt.show()
 
 
 
@@ -134,11 +126,11 @@ def outIQR(dataset,title,colName):
     for colElement in dataset.data[colName]:
         dataset.dataColumn = np.append(dataset.dataColumn, colElement)
 
-
+    '''
     fig1, ax = plt.subplots()
     ax.set_title(title)
     ax.boxplot(dataset.dataColumn)
-
+    '''
     median = np.median(dataset.dataColumn)
     q3 = np.percentile(dataset.dataColumn, 75)  # upper_quartile
     q1 = np.percentile(dataset.dataColumn, 25)  # lower_quartile
@@ -163,9 +155,10 @@ def outIQR(dataset,title,colName):
             dataset.outliers.append(i)
             print("-- outlier n ", count, ":  ", dataset.outliers[count - 1])
 
+    '''
     ax.set_xlim(right=1.5)
     plt.show()
-
+    '''
     return dataset.outliers
 
 #calcola gli outliers con il metodo ZSCORE
