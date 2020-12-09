@@ -13,22 +13,37 @@ from sklearn.ensemble import RandomForestClassifier
 
 from main import openFiles
 
-def cross(train_dataset):
-    x = train_dataset.iloc[:, 0:20].values
-    y = train_dataset.iloc[:, 20].values
-    print(" ----> x= ", len(x))
-    print(" ----> y= ", len(y))
+
+def cross(train_x, test_x, train_y, test_y, x, y):
+
+    print(" ----> train_x name= ", train_x.name)
 
     cv = model_selection.KFold(n_splits=5, random_state=0, shuffle=True)
-    for train_index, test_index in cv.split(train_dataset):
+    for train_index, test_index in cv.split(train_x.data):
        print("TRAIN:", train_index, "TEST:", test_index)
 
+    degree = 3
+    gamma = "auto"
+    kernel = "linear"
 
-# k: numero di fold per k-fold cross validation\n",
-# C: iperparametro per SVM\n",
-# kernel: tipologia di kernel per SVM\
-# train_x = train_dataset
-def k_fold_cross_validation_svm(train_x, k=5, C=1, kernel='linear', degree=3, gamma='auto'):
+    score = k_fold_cross_validation_svm(train_x.data, 5, 1, kernel, degree, gamma, x, y)
+    print('k-fold score:', score)
+
+
+
+
+def k_fold_cross_validation_svm(train_x, k, C, kernel, degree, gamma, x, y):
+    '''
+    :param train_x: train dataset senza colonna target y
+    :param k: numero di fold per k-fold cross validation
+    :param C: iperparametro per SVM
+    :param kernel: tipologia di kernel per SVM
+    :param degree: grado kernel polinomiale
+    :param gamma: Kernel coefficient for 'rbf', 'poly' and 'sigmoid'
+    :param x: dataset features
+    :param y: dataset target y
+    :return:
+    '''
     avg_score = 0
     cv = model_selection.KFold(n_splits=k, random_state=0)
     classifier = svm.SVC(C=C, kernel=kernel, degree=degree, gamma=gamma)
@@ -43,16 +58,12 @@ def k_fold_cross_validation_svm(train_x, k=5, C=1, kernel='linear', degree=3, ga
     avg_score = avg_score / k
     return avg_score
 
-    score = k_fold_cross_validation_svm(train_x, k=5, C=1, kernel='linear')
-    print('k-fold score:', score)
+
 
 
 
 def main():
     print("merda MERDA")
-    datasetPath = './training_set.csv'
-    train_dataset = openFiles(datasetPath)
-    cross(train_dataset)
 
 if __name__ == '__main__':
     main()

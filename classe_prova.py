@@ -11,6 +11,8 @@ from sklearn.neighbors import KNeighborsRegressor
 
 import seaborn as sns
 
+import crossValidation
+
 method = "IQR"
 #method = "ZSCORE"
 
@@ -26,10 +28,7 @@ class Dataset:
     self.result = None
 
 
-def openFiles(dataset, train_x, test_x, train_y, test_y):
-
-    x = dataset.iloc[:, 0:20].values
-    y = dataset.iloc[:, 20].values
+def openFiles(train_x, test_x, train_y, test_y, x, y):
 
     train_x.data, test_x.data, train_y.data, test_y.data = sklearn.model_selection.train_test_split(x, y, test_size=0.2, random_state=0)
     print('Train:', train_x.data.shape, train_y.data.shape)
@@ -53,6 +52,29 @@ def openFiles(dataset, train_x, test_x, train_y, test_y):
 
     #outliers detection
     outlierDetection(train_x, test_x)
+
+    # normalizziamo i dati, StandardScaler
+    scale(train_x, test_x, train_y, test_y)
+
+
+def scale(train_x, test_x, train_y, test_y):
+    '''
+    È buona norma normalizzare le feature che utilizzano scale e intervalli diversi.
+    Non normalizzare i dati rende l'allenamento più difficile e rende il modello risultante
+    dipendente dalla scelta delle unità nell'input.
+    '''
+
+    scaler = sklearn.preprocessing.StandardScaler()
+    scaler.fit(train_x.data) # ATTENTIONE! SI USA LA MEDIA E VARIANZA DEL TRAINING SET
+    train_x.data = scaler.transform(train_x.data)
+    test_x.data = scaler.transform(test_x.data)
+    print('SCALE Train:', train_x.data.shape, train_y.data.shape)
+    print('SCALE Test:', test_x.data.shape, test_y.data.shape)
+
+
+
+
+
 
 
 #questa funzione copia in dataColumn tutti gli elementi di una colonna, e per ogni colonna
@@ -166,6 +188,12 @@ def outIQR(dataset,title,colName):
 #output: lista outliers per la colonna
 
 def outZSCORE(dataset,colName):
+    '''
+    calcola gli outliers con il metodo ZSCORE
+    :param dataset:
+    :param colName:
+    :return:
+    '''
 
     dataset.dataColumn = np.array([])
 
@@ -378,13 +406,20 @@ def getNaCount(dataset):
 def main():
     datasetPath = './training_set.csv'
     dataset = pd.read_csv(datasetPath)
+
     train_x= Dataset("train_x",None)
     test_x=Dataset("test_x",None)
 
     train_y= Dataset("train_y",None)
     test_y = Dataset("test_y", None)
 
-    openFiles(dataset, train_x, test_x, train_y, test_y)
+    #separiamo le features x dal target y
+    x = dataset.iloc[:, 0:20].values
+    y = dataset.iloc[:, 20].values
+
+    openFiles(train_x, test_x, train_y, test_y,x,y)
+    crossValidation.cross(train_x,test_x,train_y,test_y,x,y)
+
 
 '''
     print("\n\n DOPO ----------------")
