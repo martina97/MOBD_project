@@ -11,6 +11,9 @@ from sklearn.neighbors import KNeighborsRegressor
 
 import seaborn as sns
 
+#method = "IQR"
+method = "ZSCORE"
+
 class Dataset:
   def __init__(self, name, data):
     self.name = name
@@ -48,17 +51,19 @@ def openFiles(dataset, train_x, test_x, train_y, test_y):
     # calcoliamo il numero di valori mancanti su train e test (n/a)
     naMean(train_x,test_x)
 
+    '''
+    #method = "IQR"
+    method = "ZSCORE"
+    '''
 
-    method = "IQR"
-    #method = "ZSCORE"
     #outliers detection
-    outlierDetection(train_x, test_x, method)
+    outlierDetection(train_x, test_x)
 
 
 #questa funzione copia in dataColumn tutti gli elementi di una colonna, e per ogni colonna
 #si gestiscono gli outlier con metodi opportuni
 
-def outlierDetection(train_x, test_x, method):
+def outlierDetection(train_x, test_x):
 
     for colName in train_x.data.columns:
         print("\n\ncolName = ", colName)
@@ -97,9 +102,9 @@ def outlierDetection(train_x, test_x, method):
 
             print("\n\nOUTLIERS WITH ZSCORE\n")
             print("\n------ train ------")
-            outZSCORE(train_x)
+            outZSCORE(train_x, colName)
             print("\n------ test ------")
-            outZSCORE(test_x)
+            outZSCORE(test_x,colName)
 
 
 
@@ -167,7 +172,13 @@ def outIQR(dataset,title,colName):
 #input: colonna training set della quale troviamo gli outliers
 #output: lista outliers per la colonna
 
-def outZSCORE(dataset):
+def outZSCORE(dataset,colName):
+
+    dataset.dataColumn = np.array([])
+
+    for colElement in dataset.data[colName]:
+        dataset.dataColumn = np.append(dataset.dataColumn, colElement)
+
     count = 0
     threshold = 3
     mean = np.mean(dataset.dataColumn)
@@ -184,7 +195,7 @@ def outZSCORE(dataset):
             dataset.outliers.append(i)
             print("-- outlier n ", count, ":  ", dataset.outliers[count - 1])
 
-    #return outliers
+    return dataset.outliers
 
 
 #data la lsita di outliers di una colonna, li sostituisco con il metodo KNN, che avrà come input sia
@@ -264,10 +275,17 @@ def substituteOutliers(dataset, colName):
     -- outlier n  6 :   -3.3824899824206835
     '''
 
-    # sostuituiamo i risultati con gli outliers nel dataset originario
-    for i in dataset.outliers:
-        res = checkClosestOutlier(i, dataset.result)
-        dataset.data[colName][dataset.data[colName] == i] = (res)
+    if method == "IQR" :
+
+        # sostuituiamo i risultati con gli outliers nel dataset originario
+        for i in dataset.outliers:
+            res = checkClosestOutlier(i, dataset.result)
+            dataset.data[colName][dataset.data[colName] == i] = (res)
+
+    if method == "ZSCORE" :
+
+        for i in dataset.outliers:
+            dataset.data[colName][dataset.data[colName] == i] = (dataset.result[0][0])
 
     #checkOutliersAfterKNN(dataset,colName)
 
@@ -298,9 +316,13 @@ def checkClosestOutlier(outlier,resultList):
 
 def checkOutliersAfterKNN(dataset,colName):
 
-    # CALCOLO OUTLIERS DEL TRAINING SET FINALE DELLA SIGNOLA FEATURE
-    title = colName + "after KNN"
-    outliers = outIQR(dataset, title, colName)
+    if method == "IQR":
+        # CALCOLO OUTLIERS DEL TRAINING SET FINALE DELLA SIGNOLA FEATURE
+        title = colName + "after KNN"
+        outliers = outIQR(dataset, title, colName)
+
+    if method == "ZSCORE":
+        outliers = outZSCORE(dataset,colName)
 
     if len(outliers) == 0:
         print(colName, ": KNN terminato, outliers sostituiti\n\n")
