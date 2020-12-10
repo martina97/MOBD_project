@@ -38,24 +38,64 @@ def openFiles(train_x, test_x, train_y, test_y, x, y):
     # altrimenti non si può utilizzare attributo .isna() nella def get_na_count()
     train_x.data = pd.DataFrame(train_x.data)
     test_x.data = pd.DataFrame(test_x.data)
-    train_y.data = pd.DataFrame(train_y.data)
-    test_y.data = pd.DataFrame(test_y.data)
+    train_y.data = pd.DataFrame(train_y.data, columns=['CLASS'])
+    test_y.data = pd.DataFrame(test_y.data, columns=['CLASS'])
 
     #aggiungiamo i nomi alle colonne in tutti e 4 i data frames
     changeColNames(train_x.data)
     changeColNames(test_x.data)
-    changeColNames(train_y.data)
-    changeColNames(test_y.data)
+    #changeColNames(train_y.data) #TODO: SBAGLIATO, QUA COLONNA è UNA SOLA !!!!
+    #changeColNames(test_y.data)  #TODO: SBAGLIATO, QUA COLONNA è UNA SOLA !!!!
+
+    if method == "IQR":
+        np.savetxt("train_x.data_INIZIALE_iqr.csv", train_x.data, delimiter=",")
+        np.savetxt("train_y.data_INIZIALE_iqr.csv", train_y.data, delimiter=",")
+    else:
+
+        np.savetxt("train_x.data_INIZIALE_z.csv", train_x.data, delimiter=",")
+        np.savetxt("train_y.data_INIZIALE_z.csv", train_y.data, delimiter=",")
 
     # calcoliamo il numero di valori mancanti su train e test (n/a)
     naMean(train_x,test_x)
+
+
+    #=======================
+    getNaCount(train_y)
+    getNaCount(test_y)
+    print("na train_y: ",train_y.naCount)
+    print("na test_y: ", test_y.naCount)
+
+    currMeanTr = train_y.data['CLASS'].mean()
+    currMeanTe = test_y.data['CLASS'].mean()
+    train_y.data['CLASS'] = train_y.data['CLASS'].fillna(currMeanTr)
+    test_y.data['CLASS'] = test_y.data['CLASS'].fillna(currMeanTe)
+
+    print("na train_y: ", train_y.naCount)
+    print("na test_y: ", test_y.naCount)
+
+    print("---> TRAIN_Y     ", train_y.data)
+    print("---> TEST_Y     ", test_y.data)
+    #=======================
 
     #outliers detection
     outlierDetection(train_x, test_x)
 
     # normalizziamo i dati, StandardScaler
-    scale(train_x, test_x, train_y, test_y)
+    #scale(train_x, test_x, train_y, test_y)
+    #scale2(train_x.data, test_x.data, train_y.data, test_y.data)
+    matrix(train_x, test_x, train_y, test_y)
+    #scale2(train_x, test_x, train_y, test_y)
 
+def matrix(train_x, test_x, train_y, test_y):
+    # convertiamo i DataFrame per l'input e per l'output in vettori 2D (matrici)\n",
+    train_x.data = np.float64(train_x.data)
+    train_y.data = np.float64(train_y.data)
+    train_y.data = train_y.data.reshape((len(train_y.data), 1))
+    test_x.data = np.float64(test_x.data)
+    test_y.data = np.float64(test_y.data)
+    test_y.data = test_y.data.reshape((len(test_y.data), 1))
+    print("MATRIX X: ",train_x.data.shape, train_y.data.shape)
+    print("MATRIX Y: ",test_x.data.shape, test_y.data.shape)
 
 def scale(train_x, test_x, train_y, test_y):
     '''
@@ -70,6 +110,23 @@ def scale(train_x, test_x, train_y, test_y):
     test_x.data = scaler.transform(test_x.data)
     print('SCALE Train:', train_x.data.shape, train_y.data.shape)
     print('SCALE Test:', test_x.data.shape, test_y.data.shape)
+
+def scale2(train_x, test_x, train_y, test_y):
+    #X_std = (X - X.min(axis=0)) / (X.max(axis=0) - X.min(axis=0))\n
+
+    #X_scaled = X_std * (max - min) + min\n",
+
+    scaler_x = prep.MinMaxScaler(feature_range=(-1, 1))
+    #scaler_y = prep.MinMaxScaler(feature_range=(0, 1))
+    scaler_x.fit(train_x.data)
+    #scaler_y.fit(train_y)
+    #train_x = scaler_x.transform(train_x)
+
+    train_x.data = scaler_x.transform(train_x.data)
+    test_x.data = scaler_x.transform(test_x.data)
+    #scaled_train_y = scaler_y.transform(train_y)
+    #test_x = scaler_x.transform(test_x)
+    #scaled_test_y = scaler_y.transform(test_y)
 
 
 
@@ -418,7 +475,7 @@ def main():
     y = dataset.iloc[:, 20].values
 
     openFiles(train_x, test_x, train_y, test_y,x,y)
-    crossValidation.cross(train_x,test_x,train_y,test_y,x,y)
+    crossValidation.cross(train_x,test_x,train_y,test_y,x,y,method)
 
 
 '''
