@@ -17,11 +17,6 @@ from sklearn.neighbors import KNeighborsRegressor
 import seaborn as sns
 
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
-
-
 def openFiles(dataset):
     # leggiamo i dati specificando le colonne opportune
     # TODO: dataframe = read_csv(url, header=None, na_values='?')
@@ -30,6 +25,30 @@ def openFiles(dataset):
     print("Shape:", dataset.shape)
     print(dataset.tail())
 
+
+
+    # separiamo le feature x dal target y
+    x = dataset.iloc[:,0:20].values
+    y = dataset.iloc[:,20].values
+
+
+    # dividiamo i dati in training e test
+    train_x, test_x, train_y, test_y = sklearn.model_selection.train_test_split(x, y, test_size=0.2, random_state=0)
+    print('Train:', train_x.shape, train_y.shape, "   col: ")
+    print('Test:', test_x.shape, test_y.shape)
+
+    print("\n\nPROVAAAAAAAA train_x: ", train_x)
+
+    #train_x = trsining set SENZA colonna target -> (6400, 20)
+    #test_x = test set SENZA colonna target -> (1600, 20)
+    #train_y = training set della colonna target -> (6400,)
+    #test_y = test set della colonna target -> (1600,)
+
+    # TODO: DA CANCELLARE
+    '''
+    
+    
+     
     # Ora dividiamo il dataset in training set e test set secondo le proporzioni 80-20
     train_dataset = dataset.sample(frac=0.8, random_state=0)
     test_dataset = dataset.drop(train_dataset.index)
@@ -43,12 +62,12 @@ def openFiles(dataset):
 
     print("train_labels :", train_labels)
     print("test_labels :", test_labels)
-
+    '''
 
 
     # calcoliamo il numero di valori mancanti su train e test (n/a)
-    train_dataset = naDetection(train_dataset)
-    test_dataset = naDetection(test_dataset)
+    train_dataset = naDetection(train_x)
+    test_dataset = naDetection(test_x)
 
     #train_dataset.to_csv(r'D:\Universita\magistrale\MOBD\csv\TrainingSet iniziale.csv', header=True, sep=';')
 
@@ -73,9 +92,11 @@ def openFiles(dataset):
             dataColumn = np.append(dataColumn, i)
 
         title = j + '  before KNN'
+
         # print("\n\ndata2: ", dataColumn, "\n\n")
-        # outliers = createBoxplot(dataColumn, title)
+        #outliers = createBoxplot(dataColumn, title)
         # outliers = prova_box(train_dataset,j, "before KNN")
+
         outliers = prova_box2(dataColumn, "  before KNN", j)
 
         # knnDetection(dataColumn,outliers,j,train_dataset)
@@ -249,6 +270,29 @@ def knnDetection2(outliers, colName, train_dataset):
         return 0
     '''
 
+def naMean(train_dataset,test_dataset):
+    # calcoliamo il numero di valori mancanti su train e test
+    summary_train = get_na_count(train_dataset)
+    print("count NaN TRAINING: ", summary_train, "\n\n\n")
+    summary_test = get_na_count(test_dataset)
+    print("count NaN TESTING: ", summary_test, "\n\n\n")
+
+    # print(train_dataset['F1'].mean())
+
+    print("\n\nMEDIA PER OGNI ATTRIBUTO: ")
+
+    string = "F"
+    for i in range(1, 21):
+        currColumn = string + str(i)
+        currMean = train_dataset[currColumn].mean()
+
+        print(currColumn, ": ", currMean)
+
+        train_dataset[currColumn] = train_dataset[currColumn].fillna(currMean)
+        test_dataset[currColumn] = test_dataset[currColumn].fillna(currMean)
+
+
+
 
 def naDetection(dataset):
     df = pd.DataFrame(dataset)
@@ -259,6 +303,9 @@ def naDetection(dataset):
     # print(" ------->", get_na_count(df_imputed))
 
     return changeColNames(df_imputed)
+
+
+
 
 
 def changeColNames(df_imputed):
@@ -300,7 +347,7 @@ def createBoxplot(dataset, title):
     print("l: ", l, "    r:", r)
 
     # trovo gli outliers e li inserisco in una lista
-    '''
+
     outliers = []
     count = 0
     for i in dataset:
@@ -309,6 +356,8 @@ def createBoxplot(dataset, title):
             outliers.append(i)
             print("-- outlier n ", count, ":  ", outliers[count - 1])
     '''
+    
+    
     count = 0
     threshold = 10
     mean = np.mean(dataset)
@@ -322,6 +371,7 @@ def createBoxplot(dataset, title):
             print("-- outlier n ", count, ":  ", outliers[count - 1])
 
     # print('outlier in dataset is', outliers)
+    '''
 
     ax.set_xlim(right=1.5)
     plt.show()

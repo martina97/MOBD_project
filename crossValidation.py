@@ -10,12 +10,13 @@ import sklearn.svm as svm
 import seaborn as sns
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import cross_val_score, GridSearchCV
 
 from main import openFiles
 
 
 
-def cross(train_x, test_x, train_y, test_y, x, y,method):
+def cross(train_x, test_x, train_y, test_y,method):
     if method == "IQR":
         np.savetxt("train_x.data_FINALE_iqr.csv", train_x.data, delimiter=",")
         np.savetxt("train_y.data_FINALE_iqr.csv", train_y.data, delimiter=",")
@@ -24,13 +25,41 @@ def cross(train_x, test_x, train_y, test_y, x, y,method):
         np.savetxt("train_x.data_FINALE_z.csv", train_x.data, delimiter=",")
         np.savetxt("train_y.data_FINALE_z.csv", train_y.data, delimiter=",")
 
-    x = train_x.data.iloc[:,0:8].values
-    np.append(x, test_x.data.iloc[:,0:8].values)
+    #np.ravel().estimator.fit(X_train, y_train, )
 
-    print(" ---------> x: ", x.shape)
+    #scelgo algoritmo/classificatore
+    classifier = RandomForestClassifier(n_estimators=600, random_state=0)
+
+    #calcolo accuracy di tutti i folds
+    all_accuracies = cross_val_score(estimator=classifier, X=train_x.data, y=train_y.data.ravel(), cv=5)
+
+    print("all_accuracies: ", all_accuracies)
+    print("all_accuracies.mean: ",all_accuracies.mean())
+    print("all_accuracies.std: ",all_accuracies.std())
 
 
+    #Adesso facciamo Grid Search
+    grid_param = {
+        #'n_estimators': [100, 300, 500, 800, 1000],
+        'n_estimators': [1000, 1500, 2000, 2500],
+        'criterion': ['gini', 'entropy'],
+        'bootstrap': [True, False]
+    }
 
+    gd_sr = model_selection.GridSearchCV(estimator=classifier,
+                         param_grid=grid_param,
+                         scoring='f1_macro',
+                         cv=5,
+                         refit = True,
+                         n_jobs=-1)
+
+    gd_sr.fit(train_x.data, train_y.data.ravel())
+    best_parameters = gd_sr.best_params_
+    print("best_parameters: ",best_parameters)
+    best_result = gd_sr.best_score_
+    print("best_result", best_result)
+
+    ''' 
     print(" ----> train_x name= ", train_x.name)
 
     cv = model_selection.KFold(n_splits=5, random_state=0, shuffle=True)
@@ -46,13 +75,14 @@ def cross(train_x, test_x, train_y, test_y, x, y,method):
 
     #TODO: LEGGERE!!!!!
     '''
+    '''
     funziona con train_x e y solo perché FORTUNATAMENTE y non ha NaN
     con x e y non funziona perché x così ha dei NaN 
     con train_x e train_y non funziona a causa di bug in pandas (parquet index:
     https://github.com/modin-project/modin/pull/1397 )
     '''
 
-    print('k-fold score:', score)
+    #print('k-fold score:', score)
 
 
 

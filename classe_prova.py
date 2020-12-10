@@ -13,8 +13,9 @@ import seaborn as sns
 
 import crossValidation
 
-method = "IQR"
-#method = "ZSCORE"
+#method = "IQR"
+method = "ZSCORE"
+#todo: ALTRO METODO: MEDIA
 
 class Dataset:
   def __init__(self, name, data):
@@ -84,6 +85,8 @@ def openFiles(train_x, test_x, train_y, test_y, x, y):
     #scale(train_x, test_x, train_y, test_y)
     #scale2(train_x.data, test_x.data, train_y.data, test_y.data)
     matrix(train_x, test_x, train_y, test_y)
+    scale(train_x, test_x, train_y, test_y)
+
     #scale2(train_x, test_x, train_y, test_y)
 
 def matrix(train_x, test_x, train_y, test_y):
@@ -187,9 +190,11 @@ def outlierDetection(train_x, test_x):
 
         fig1, ax = plt.subplots()
         ax.set_title(colName + " after KNN")
-        ax.set_xticklabels(['TRAIN', 'TEST'])
+        ax.set_xticklabels(["TRAIN", "TEST"])
 
         ax.boxplot([train_x.dataColumn, test_x.dataColumn])
+        #fig1.tight_layout()
+
         plt.show()
 
 
@@ -475,7 +480,7 @@ def main():
     y = dataset.iloc[:, 20].values
 
     openFiles(train_x, test_x, train_y, test_y,x,y)
-    crossValidation.cross(train_x,test_x,train_y,test_y,x,y,method)
+    crossValidation.cross(train_x,test_x,train_y,test_y,method)
 
 
 '''
