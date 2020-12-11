@@ -8,6 +8,7 @@ import sklearn.model_selection as model_selection
 import sklearn.metrics as metrics
 import sklearn.svm as svm
 import seaborn as sns
+from sklearn.pipeline import Pipeline
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score, GridSearchCV
@@ -75,8 +76,53 @@ def cross(train_x, test_x, train_y, test_y,method):
     print()
 
 
+def randomForest(train_x, train_y):
+    # scelgo algoritmo/classificatore
+    classifier = RandomForestClassifier(n_estimators=600, random_state=0)
+    pipe = Pipeline( ['classifier', classifier])
 
+    # calcolo accuracy di tutti i folds
+    all_accuracies = cross_val_score(estimator=classifier, X=train_x.data, y=train_y.data.ravel(), cv=5)
 
+    print("all_accuracies: ", all_accuracies)
+    print("all_accuracies.mean: ", all_accuracies.mean())
+    print("all_accuracies.std: ", all_accuracies.std())
+
+    # Adesso facciamo Grid Search
+    grid_param = {
+        # 'n_estimators': [100, 300, 500, 800, 1000],
+        'n_estimators': [1000, 1500, 2000, 2500],
+        'criterion': ['gini', 'entropy'],
+        'bootstrap': [True, False]
+    }
+
+    gd_sr = model_selection.GridSearchCV(pipe,
+                                         param_grid=grid_param,
+                                         scoring='f1_macro',
+                                         cv=5,
+                                         refit=True,
+                                         n_jobs=-1)
+
+    '''
+    gd_sr.fit(train_x.data, train_y.data.ravel())
+    best_parameters = gd_sr.best_params_
+    print("best_parameters: ",best_parameters)
+    best_result = gd_sr.best_score_
+    print("best_result", best_result)
+    '''
+
+    gd_sr.fit(train_x.data, train_y.data.ravel())
+    print("Best parameters:")
+    print()
+    print(gd_sr.best_params_)
+    print()
+    print("Grid scores:")
+    print()
+    means = gd_sr.cv_results_['mean_test_score']
+    stds = gd_sr.cv_results_['std_test_score']
+    for mean, std, params in zip(means, stds, gd_sr.cv_results_['params']):
+        print("%0.4f (+/-%0.03f) for %r" % (mean, std * 2, params))
+    print()
 
 
 def k_fold_cross_validation_svm(train_x, k, C, kernel, degree, gamma, x, train_y,test_x, test_y):
