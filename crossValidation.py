@@ -53,36 +53,28 @@ def cross(train_x, test_x, train_y, test_y,method):
                          refit = True,
                          n_jobs=-1)
 
+    '''
     gd_sr.fit(train_x.data, train_y.data.ravel())
     best_parameters = gd_sr.best_params_
     print("best_parameters: ",best_parameters)
     best_result = gd_sr.best_score_
     print("best_result", best_result)
-
-    ''' 
-    print(" ----> train_x name= ", train_x.name)
-
-    cv = model_selection.KFold(n_splits=5, random_state=0, shuffle=True)
-    for train_index, test_index in cv.split(train_x.data):
-       print("TRAIN:", train_index, "TEST:", test_index)
-
-    degree = 3
-    gamma = "auto"
-    kernel = "linear"
-
-    #score = k_fold_cross_validation_svm(train_x.data, 5, 1, kernel, degree, gamma, x, y)
-    score = k_fold_cross_validation_svm(train_x, 5, 1, kernel, degree, gamma, x, y,test_x, test_y)
-
-    #TODO: LEGGERE!!!!!
-    '''
-    '''
-    funziona con train_x e y solo perché FORTUNATAMENTE y non ha NaN
-    con x e y non funziona perché x così ha dei NaN 
-    con train_x e train_y non funziona a causa di bug in pandas (parquet index:
-    https://github.com/modin-project/modin/pull/1397 )
     '''
 
-    #print('k-fold score:', score)
+    gd_sr.fit(train_x.data, train_y.data.ravel())
+    print("Best parameters:")
+    print()
+    print(gd_sr.best_params_)
+    print()
+    print("Grid scores:")
+    print()
+    means = gd_sr.cv_results_['mean_test_score']
+    stds = gd_sr.cv_results_['std_test_score']
+    for mean, std, params in zip(means, stds, gd_sr.cv_results_['params']):
+        print("%0.4f (+/-%0.03f) for %r" % (mean, std * 2, params))
+    print()
+
+
 
 
 
