@@ -13,7 +13,6 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score, GridSearchCV
 
-from main import openFiles
 
 
 
@@ -28,8 +27,9 @@ def cross(train_x, test_x, train_y, test_y,method):
 
     #np.ravel().estimator.fit(X_train, y_train, )
 
-    randomForest(train_x, train_y)
-    svm_param_selection(train_x, train_y, n_folds=5, metric='f1_macro')
+    #randomForest(train_x, train_y)
+    #svm_param_selection(train_x, train_y, n_folds=5, metric='f1_macro')
+    decisionTree(train_x, train_y, n_folds=5, metric='f1_macro')
 
 
 def randomForest(train_x, train_y):
@@ -47,22 +47,21 @@ def randomForest(train_x, train_y):
     print("all_accuracies.std: ", all_accuracies.std())
 
     # Adesso facciamo Grid Search
+    # griglia degli iperparametri
     grid_param = {
         # 'n_estimators': [100, 300, 500, 800, 1000],
+        'max_depth': [80, 90],
+        'max_features': [2, 3],
+        'min_samples_leaf': [3, 4],
         'n_estimators': [1000, 1500, 2000, 2500],
         'criterion': ['gini', 'entropy'],
         'bootstrap': [True, False]
     }
 
-    grid_param2 = {
-        # 'n_estimators': [100, 300, 500, 800, 1000],
-        'n_estimators': [2500, 3000, 3500, 4000],
-        'criterion': ['gini', 'entropy'],
-        'bootstrap': [True, False]
-    }
+
 
     gd_sr = model_selection.GridSearchCV(classifier,
-                                         param_grid=grid_param2,
+                                         param_grid=grid_param,
                                          scoring='f1_macro',
                                          cv=5,
                                          refit=True,
@@ -77,27 +76,32 @@ def randomForest(train_x, train_y):
 
 
 
-    '''
-    gd_sr.fit(train_x.data, train_y.data.ravel())
-    print("Best parameters:")
-    print()
-    print(gd_sr.best_params_)
-    print()
-    print("Grid scores:")
-    print()
-    means = gd_sr.cv_results_['mean_test_score']
-    stds = gd_sr.cv_results_['std_test_score']
-    for mean, std, params in zip(means, stds, gd_sr.cv_results_['params']):
-        print("%0.4f (+/-%0.03f) for %r" % (mean, std * 2, params))
-    print()
 
-    '''
 
 def svm_param_selection(train_x, train_y, n_folds, metric):
 
     # griglia degli iperparametri\n",
-    param_grid = [{'kernel': ['rbf'], 'gamma': [1e-3, 1e-4], 'C': [0.1, 1, 10]},
-                    {'kernel': ['linear'], 'C': [0.1, 1, 10]}]
+    c_svc = [1, 1.5, 2, 2.5, 2.75, 3, 3.5, 5, 10]
+    gamma_svc = [0.03, 0.05, 0.07, 0.1, 0.5]
+    c_svc_log10 = 10. ** np.arange(-3,3)
+    gamma_svc_log10 = 10. ** np.arange(-5,4)
+
+    c_svc_log2 = 2. ** np.arange(-5, 5)
+    gamma_svc_log2 = 2. ** np.arange(-3, 3)
+
+
+
+    param_grid = [  #{'kernel': ['rbf'], 'gamma': [1e-3, 1e-4], 'C': [0.1, 1, 10]},
+                    #{'kernel': ['linear'], 'C': [0.1, 1, 10]},
+                    #{'kernel': ['rbf'], 'gamma': 2. ** np.arange(-3,3), 'C': 2. ** np.arange(-5,5), 'class_weight': [None, 'balanced']},
+                    #{'kernel': ['rbf'], 'gamma': [0.01], 'C': [50], 'class_weight': [None]},
+                    {'kernel': ['rbf'], 'gamma': gamma_svc_log10, 'C':c_svc_log10, 'class_weight': [None, 'balanced']},
+                    {'kernel': ['rbf'], 'gamma': gamma_svc, 'C': c_svc, 'class_weight': [None, 'balanced']},
+                    {'kernel': ['linear'], 'C': c_svc},
+                    {'kernel': ['linear'], 'C': c_svc_log10},
+                    {'kernel': ['linear'], 'C': c_svc_log2}
+
+    ]
 
     clf = model_selection.GridSearchCV(svm.SVC(), param_grid, scoring=metric, cv=n_folds, refit=True)
 
@@ -108,51 +112,43 @@ def svm_param_selection(train_x, train_y, n_folds, metric):
     best_result = clf.best_score_
     print("best_result SVM: ", best_result)
 
-    '''
+
+
+def decisionTree(train_x, train_y, n_folds, metric):
+    classifier = (DecisionTreeClassifier())
+
+    param_grid = {
+                    'criterion':['gini', 'entropy'],
+                    'splitter':['best', 'random'],
+                    #'max_depth':[np.arange(3, 200, 10), None],
+                    'max_leaf_nodes': np.arange(2, 100),
+                    'min_samples_split': [2, 3, 4],
+                    'max_depth':[4,5,6,7,8,9,10,11,12,15,20,30,40,50,70,90,120,150]
+                    # 'min_samples_split' : range(10,500,20),'max_depth': range(1,20,2)}}
+    }
+    clf = model_selection.GridSearchCV(classifier, param_grid, scoring=metric, cv=n_folds, refit=True)
     clf.fit(train_x.data, train_y.data.ravel())
-    
-    print("Best parameters:")
-    print()
-    print(clf.best_params_)
-    print()
-    print("Grid scores:")
-    print()
-    means = clf.cv_results_['mean_test_score']
-    stds = clf.cv_results_['std_test_score']
-    '''
-
-def k_fold_cross_validation_svm(train_x, k, C, kernel, degree, gamma, x, train_y,test_x, test_y):
-
-    '''
-    :param train_x: train dataset senza colonna target y
-    :param k: numero di fold per k-fold cross validation
-    :param C: iperparametro per SVM
-    :param kernel: tipologia di kernel per SVM
-    :param degree: grado kernel polinomiale
-    :param gamma: Kernel coefficient for 'rbf', 'poly' and 'sigmoid'
-    :param x: dataset features
-    :param y: dataset target y
-    :return:
-    '''
-
-    avg_score = 0
-    cv = model_selection.KFold(n_splits=k, random_state=0, shuffle=True)
-    classifier = svm.SVC(C=C, kernel=kernel, degree=degree, gamma=gamma)
-    for train_index, test_index in cv.split(train_x.data):
-        fold_train_x, fold_test_x = train_x.data[train_index], test_x.data[test_index]
-        fold_train_y, fold_test_y = train_y.data[train_index], test_y.data[test_index]
-        classifier.fit(fold_train_x, fold_train_y)
-        fold_pred_y = classifier.predict(fold_test_x)
-        # ora calcola accuracy (%di esempi classificati correttamente):
-        score = metrics.accuracy_score(fold_test_y, fold_pred_y)
-        print(score)
-        avg_score += score
-    avg_score = avg_score / k   #risultato finale
-    return avg_score
+    best_parameters = clf.best_params_
+    print("\n\nbest_parameters DECISION TREE : ", best_parameters)
+    best_result = clf.best_score_
+    print("best_result DECISION TREE: ", best_result)
 
 
+'''
+gd_sr.fit(train_x.data, train_y.data.ravel())
+print("Best parameters:")
+print()
+print(gd_sr.best_params_)
+print()
+print("Grid scores:")
+print()
+means = gd_sr.cv_results_['mean_test_score']
+stds = gd_sr.cv_results_['std_test_score']
+for mean, std, params in zip(means, stds, gd_sr.cv_results_['params']):
+    print("%0.4f (+/-%0.03f) for %r" % (mean, std * 2, params))
+print()
 
-
+'''
 
 def main():
     print("merda MERDA")
