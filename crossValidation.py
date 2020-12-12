@@ -28,58 +28,16 @@ def cross(train_x, test_x, train_y, test_y,method):
 
     #np.ravel().estimator.fit(X_train, y_train, )
 
-    #scelgo algoritmo/classificatore
-    classifier = RandomForestClassifier(n_estimators=600, random_state=0)
-
-    #calcolo accuracy di tutti i folds
-    all_accuracies = cross_val_score(estimator=classifier, X=train_x.data, y=train_y.data.ravel(), cv=5)
-
-    print("all_accuracies: ", all_accuracies)
-    print("all_accuracies.mean: ",all_accuracies.mean())
-    print("all_accuracies.std: ",all_accuracies.std())
-
-
-    #Adesso facciamo Grid Search
-    grid_param = {
-        #'n_estimators': [100, 300, 500, 800, 1000],
-        'n_estimators': [1000, 1500, 2000, 2500],
-        'criterion': ['gini', 'entropy'],
-        'bootstrap': [True, False]
-    }
-
-    gd_sr = model_selection.GridSearchCV(estimator=classifier,
-                         param_grid=grid_param,
-                         scoring='f1_macro',
-                         cv=5,
-                         refit = True,
-                         n_jobs=-1)
-
-    '''
-    gd_sr.fit(train_x.data, train_y.data.ravel())
-    best_parameters = gd_sr.best_params_
-    print("best_parameters: ",best_parameters)
-    best_result = gd_sr.best_score_
-    print("best_result", best_result)
-    '''
-
-    gd_sr.fit(train_x.data, train_y.data.ravel())
-    print("Best parameters:")
-    print()
-    print(gd_sr.best_params_)
-    print()
-    print("Grid scores:")
-    print()
-    means = gd_sr.cv_results_['mean_test_score']
-    stds = gd_sr.cv_results_['std_test_score']
-    for mean, std, params in zip(means, stds, gd_sr.cv_results_['params']):
-        print("%0.4f (+/-%0.03f) for %r" % (mean, std * 2, params))
-    print()
+    randomForest(train_x, train_y)
+    svm_param_selection(train_x, train_y, n_folds=5, metric='f1_macro')
 
 
 def randomForest(train_x, train_y):
     # scelgo algoritmo/classificatore
-    classifier = RandomForestClassifier(n_estimators=600, random_state=0)
-    pipe = Pipeline( ['classifier', classifier])
+    #classifier = RandomForestClassifier(n_estimators=600, random_state=0)
+    classifier = RandomForestClassifier()
+
+    #pipe = Pipeline(['classifier', classifier])
 
     # calcolo accuracy di tutti i folds
     all_accuracies = cross_val_score(estimator=classifier, X=train_x.data, y=train_y.data.ravel(), cv=5)
@@ -96,21 +54,30 @@ def randomForest(train_x, train_y):
         'bootstrap': [True, False]
     }
 
-    gd_sr = model_selection.GridSearchCV(pipe,
-                                         param_grid=grid_param,
+    grid_param2 = {
+        # 'n_estimators': [100, 300, 500, 800, 1000],
+        'n_estimators': [2500, 3000, 3500, 4000],
+        'criterion': ['gini', 'entropy'],
+        'bootstrap': [True, False]
+    }
+
+    gd_sr = model_selection.GridSearchCV(classifier,
+                                         param_grid=grid_param2,
                                          scoring='f1_macro',
                                          cv=5,
                                          refit=True,
                                          n_jobs=-1)
 
-    '''
+
     gd_sr.fit(train_x.data, train_y.data.ravel())
     best_parameters = gd_sr.best_params_
-    print("best_parameters: ",best_parameters)
+    print("best_parameters RANDOM FOREST: ",best_parameters)
     best_result = gd_sr.best_score_
-    print("best_result", best_result)
-    '''
+    print("best_result RANDOM FOREST: ", best_result)
 
+
+
+    '''
     gd_sr.fit(train_x.data, train_y.data.ravel())
     print("Best parameters:")
     print()
@@ -124,6 +91,35 @@ def randomForest(train_x, train_y):
         print("%0.4f (+/-%0.03f) for %r" % (mean, std * 2, params))
     print()
 
+    '''
+
+def svm_param_selection(train_x, train_y, n_folds, metric):
+
+    # griglia degli iperparametri\n",
+    param_grid = [{'kernel': ['rbf'], 'gamma': [1e-3, 1e-4], 'C': [0.1, 1, 10]},
+                    {'kernel': ['linear'], 'C': [0.1, 1, 10]}]
+
+    clf = model_selection.GridSearchCV(svm.SVC(), param_grid, scoring=metric, cv=n_folds, refit=True)
+
+
+    clf.fit(train_x.data, train_y.data.ravel())
+    best_parameters = clf.best_params_
+    print("\n\nbest_parameters SVM : ", best_parameters)
+    best_result = clf.best_score_
+    print("best_result SVM: ", best_result)
+
+    '''
+    clf.fit(train_x.data, train_y.data.ravel())
+    
+    print("Best parameters:")
+    print()
+    print(clf.best_params_)
+    print()
+    print("Grid scores:")
+    print()
+    means = clf.cv_results_['mean_test_score']
+    stds = clf.cv_results_['std_test_score']
+    '''
 
 def k_fold_cross_validation_svm(train_x, k, C, kernel, degree, gamma, x, train_y,test_x, test_y):
 
