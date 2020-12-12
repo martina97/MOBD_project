@@ -190,7 +190,7 @@ def outlierDetection(train_x, test_x):
 
         print("\n\n--------- KNN TEST ------ ")
         substituteOutliers(test_x, colName)
-        checkOutliersAfterKNN(test_x, colName)
+        checkOutliersAfterReplacement(test_x, colName)
 
         fig1, ax = plt.subplots()
         ax.set_title(colName + " after KNN")
