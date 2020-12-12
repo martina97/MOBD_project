@@ -13,19 +13,26 @@ import seaborn as sns
 
 import crossValidation
 
-#method = "IQR"
-method = "ZSCORE"
+#outliers:
+
+#find_method = "IQR"
+find_method = "ZSCORE"
+
+#substitute_method = "KNN"
+substitute_method = "MEAN"
+
 #todo: ALTRO METODO: MEDIA
+
+scaleType = "STANDARD"
+#scaleType = "MINMAX"
 
 class Dataset:
   def __init__(self, name, data):
     self.name = name
     self.data = data
     self.naCount = None
-    #self.dataAfterIQR = None
-    #self.dataAfterZSCORE = None
     self.outliers = None    #lista outliers di una colonna
-    self.dataColumn = None #elementi di una colonna
+    self.dataColumn = None  #elementi di una colonna
     self.result = None
 
 
@@ -45,10 +52,8 @@ def openFiles(train_x, test_x, train_y, test_y, x, y):
     #aggiungiamo i nomi alle colonne in tutti e 4 i data frames
     changeColNames(train_x.data)
     changeColNames(test_x.data)
-    #changeColNames(train_y.data) #TODO: SBAGLIATO, QUA COLONNA è UNA SOLA !!!!
-    #changeColNames(test_y.data)  #TODO: SBAGLIATO, QUA COLONNA è UNA SOLA !!!!
 
-    if method == "IQR":
+    if find_method == "IQR":
         np.savetxt("train_x.data_INIZIALE_iqr.csv", train_x.data, delimiter=",")
         np.savetxt("train_y.data_INIZIALE_iqr.csv", train_y.data, delimiter=",")
     else:
@@ -59,38 +64,29 @@ def openFiles(train_x, test_x, train_y, test_y, x, y):
     # calcoliamo il numero di valori mancanti su train e test (n/a)
     naMean(train_x,test_x)
 
-
-    #=======================
-    getNaCount(train_y)
-    getNaCount(test_y)
-    print("na train_y: ",train_y.naCount)
-    print("na test_y: ", test_y.naCount)
-
-    currMeanTr = train_y.data['CLASS'].mean()
-    currMeanTe = test_y.data['CLASS'].mean()
-    train_y.data['CLASS'] = train_y.data['CLASS'].fillna(currMeanTr)
-    test_y.data['CLASS'] = test_y.data['CLASS'].fillna(currMeanTe)
-
-    print("na train_y: ", train_y.naCount)
-    print("na test_y: ", test_y.naCount)
-
-    print("---> TRAIN_Y     ", train_y.data)
-    print("---> TEST_Y     ", test_y.data)
-    #=======================
-
     #outliers detection
     outlierDetection(train_x, test_x)
 
-    # normalizziamo i dati, StandardScaler
-    #scale(train_x, test_x, train_y, test_y)
-    #scale2(train_x.data, test_x.data, train_y.data, test_y.data)
-    matrix(train_x, test_x, train_y, test_y)
+    #normalizziamo i dati
     scale(train_x, test_x, train_y, test_y)
 
-    #scale2(train_x, test_x, train_y, test_y)
+
+
+
+
+
+def scale(train_x, test_x, train_y, test_y):
+
+    matrix(train_x, test_x, train_y, test_y)
+
+    if scaleType=="STANDARD":
+        standardScaler(train_x, test_x, train_y, test_y)
+    else:
+        minMaxScaler(train_x, test_x, train_y, test_y)
+
 
 def matrix(train_x, test_x, train_y, test_y):
-    # convertiamo i DataFrame per l'input e per l'output in vettori 2D (matrici)\n",
+    #convertiamo i DataFrame per l'input e per l'output in vettori 2D (matrici)
     train_x.data = np.float64(train_x.data)
     train_y.data = np.float64(train_y.data)
     train_y.data = train_y.data.reshape((len(train_y.data), 1))
@@ -100,7 +96,8 @@ def matrix(train_x, test_x, train_y, test_y):
     print("MATRIX X: ",train_x.data.shape, train_y.data.shape)
     print("MATRIX Y: ",test_x.data.shape, test_y.data.shape)
 
-def scale(train_x, test_x, train_y, test_y):
+
+def standardScaler(train_x, test_x, train_y, test_y):
     '''
     È buona norma normalizzare le feature che utilizzano scale e intervalli diversi.
     Non normalizzare i dati rende l'allenamento più difficile e rende il modello risultante
@@ -114,28 +111,29 @@ def scale(train_x, test_x, train_y, test_y):
     print('SCALE Train:', train_x.data.shape, train_y.data.shape)
     print('SCALE Test:', test_x.data.shape, test_y.data.shape)
 
-def scale2(train_x, test_x, train_y, test_y):
-    #X_std = (X - X.min(axis=0)) / (X.max(axis=0) - X.min(axis=0))\n
-
-    #X_scaled = X_std * (max - min) + min\n",
+def minMaxScaler(train_x, test_x, train_y, test_y):
 
     scaler_x = prep.MinMaxScaler(feature_range=(-1, 1))
-    #scaler_y = prep.MinMaxScaler(feature_range=(0, 1))
     scaler_x.fit(train_x.data)
-    #scaler_y.fit(train_y)
-    #train_x = scaler_x.transform(train_x)
 
     train_x.data = scaler_x.transform(train_x.data)
     test_x.data = scaler_x.transform(test_x.data)
-    #scaled_train_y = scaler_y.transform(train_y)
-    #test_x = scaler_x.transform(test_x)
-    #scaled_test_y = scaler_y.transform(test_y)
 
 
 
+#sostuisce outliers con media per ogni colonna
+def outlierMean(train_x, test_x, colName):
 
+    # copio dataset in lista y e tolgo outliers
+    y = train_x.data[colName].copy()
+    for i in train_x.outliers:
+        y = y[y != i]
 
-
+    mean = y.mean()
+    print("\n\n -- Media di ",colName," : ", mean)
+    train_x.result = mean
+    test_x.result = mean
+    return mean
 
 #questa funzione copia in dataColumn tutti gli elementi di una colonna, e per ogni colonna
 #si gestiscono gli outlier con metodi opportuni
@@ -148,7 +146,7 @@ def outlierDetection(train_x, test_x):
         title = colName + ' before KNN'
 
         #metodi diversi per il calcolo di outliers sia per train_x che per test_x
-        if(method == "IQR"):
+        if find_method == "IQR":
 
             print("\nOUTLIERS WITH IQR")
             print("\n------ train ------")
@@ -166,7 +164,7 @@ def outlierDetection(train_x, test_x):
             
 
 
-        if(method == "ZSCORE"):
+        if find_method == "ZSCORE":
 
             print("\n\nOUTLIERS WITH ZSCORE\n")
             print("\n------ train ------")
@@ -176,13 +174,19 @@ def outlierDetection(train_x, test_x):
 
 
 
-        #una volta che ho la lista di outliers, li sostituisco con il metodo KNN, che avrà come input sia
-        #il training che il test, poichè devo modificarli entrambi colonna x colonna
-        knnDetectionTRAIN(train_x,test_x,colName)
+        if substitute_method == "KNN" :
+
+            #una volta che ho la lista di outliers, li sostituisco con il metodo KNN, che avrà come input sia
+            #il training che il test, poichè devo modificarli entrambi colonna x colonna
+            knnDetectionTRAIN(train_x,test_x,colName)
+
+        else:
+            outlierMean(train_x,test_x,colName)
+
         # sostuituiamo i risultati con gli outliers nel dataset originario
         substituteOutliers(train_x, colName)
         # controllo outliers dopo aver applicato KNN
-        checkOutliersAfterKNN(train_x, colName)
+        checkOutliersAfterReplacement(train_x, colName)
 
         print("\n\n--------- KNN TEST ------ ")
         substituteOutliers(test_x, colName)
@@ -287,16 +291,8 @@ def knnDetectionTRAIN(train_x, test_x, colName):
 
     # copio dataset in lista y e tolgo outliers
     y = train_x.data[colName].copy()
-    # print("y = ", y)
     for i in train_x.outliers:
-        # print ("i= ",i)
-        # y.remove(i)
         y = y[y != i]
-        # print("y = ", y)
-
-    # print("y = ", y)
-    # print("data2: ", data2)
-
 
     # ORA ABBIAMO TOLTO E SOSTITUITO OUTLIER : USIAMO KNN !!!!!
 
@@ -357,18 +353,22 @@ def substituteOutliers(dataset, colName):
     -- outlier n  5 :   -3.3372981576055034
     -- outlier n  6 :   -3.3824899824206835
     '''
+    if substitute_method == "KNN":
+        if find_method == "IQR" :
 
-    if method == "IQR" :
+            # sostuituiamo i risultati con gli outliers nel dataset originario
+            for i in dataset.outliers:
+                res = checkClosestOutlier(i, dataset.result)
+                dataset.data[colName][dataset.data[colName] == i] = (res)
 
-        # sostuituiamo i risultati con gli outliers nel dataset originario
+        if find_method == "ZSCORE" :
+
+            for i in dataset.outliers:
+                dataset.data[colName][dataset.data[colName] == i] = (dataset.result[0][0])
+
+    if substitute_method == "MEAN":
         for i in dataset.outliers:
-            res = checkClosestOutlier(i, dataset.result)
-            dataset.data[colName][dataset.data[colName] == i] = (res)
-
-    if method == "ZSCORE" :
-
-        for i in dataset.outliers:
-            dataset.data[colName][dataset.data[colName] == i] = (dataset.result[0][0])
+            dataset.data[colName][dataset.data[colName] == i] = (dataset.result)
 
     #checkOutliersAfterKNN(dataset,colName)
 
@@ -397,14 +397,14 @@ def checkClosestOutlier(outlier,resultList):
     else :
         return diff1
 
-def checkOutliersAfterKNN(dataset,colName):
+def checkOutliersAfterReplacement(dataset,colName):
 
-    if method == "IQR":
+    if find_method == "IQR":
         # CALCOLO OUTLIERS DEL TRAINING SET FINALE DELLA SIGNOLA FEATURE
         title = colName + "after KNN"
         outliers = outIQR(dataset, title, colName)
 
-    if method == "ZSCORE":
+    if find_method == "ZSCORE":
         outliers = outZSCORE(dataset,colName)
 
     if len(outliers) == 0:
@@ -480,19 +480,9 @@ def main():
     y = dataset.iloc[:, 20].values
 
     openFiles(train_x, test_x, train_y, test_y,x,y)
-    crossValidation.cross(train_x,test_x,train_y,test_y,method)
+    #crossValidation.cross(train_x,test_x,train_y,test_y,find_method)
 
 
-'''
-    print("\n\n DOPO ----------------")
-    print('Train:', train_x.data.shape, train_y.data.shape, "   col: ")
-    print('Test:', test_x.data.shape, test_y.data.shape)
-
-    print("Shape:", train_x.data)
-    train_x.naCount=2
-    print("na:", train_x.naCount)
-
-'''
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
