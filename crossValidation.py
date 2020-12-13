@@ -1,18 +1,11 @@
 import numpy as np
-import pandas as pd
-import matplotlib
-from matplotlib import pyplot as plt
-import sklearn
-import sklearn.preprocessing as preprocessing
 import sklearn.model_selection as model_selection
 import sklearn.metrics as metrics
 import sklearn.svm as svm
-import seaborn as sns
 from sklearn.neural_network import MLPClassifier
-from sklearn.pipeline import Pipeline
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import cross_val_score, GridSearchCV
+from sklearn.model_selection import cross_val_score
 
 
 
@@ -25,8 +18,6 @@ def cross(train_x, test_x, train_y, test_y,method):
 
         np.savetxt("train_x.data_FINALE_z.csv", train_x.data, delimiter=",")
         np.savetxt("train_y.data_FINALE_z.csv", train_y.data, delimiter=",")
-
-    #np.ravel().estimator.fit(X_train, y_train, )
 
     #randomForest(train_x, train_y)
     #svm_param_selection(train_x, train_y, n_folds=5, metric='f1_macro')

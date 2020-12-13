@@ -3,14 +3,9 @@ import sklearn
 import sklearn.preprocessing as prep
 import numpy as np
 import pandas as pd
-import tensorflow as tf
-import matplotlib
 from matplotlib import pyplot as plt
 from sklearn.decomposition import PCA
-from sklearn.impute import KNNImputer
 from sklearn.neighbors import KNeighborsRegressor
-
-import seaborn as sns
 
 import crossValidation
 
@@ -35,7 +30,7 @@ class Dataset:
     self.result = None
 
 
-def openFiles(train_x, test_x, train_y, test_y, x, y):
+def preProcessing(train_x, test_x, train_y, test_y, x, y):
 
     train_x.data, test_x.data, train_y.data, test_y.data = sklearn.model_selection.train_test_split(x, y, test_size=0.2, random_state=0)
     print('Train:', train_x.data.shape, train_y.data.shape)
@@ -52,13 +47,16 @@ def openFiles(train_x, test_x, train_y, test_y, x, y):
     changeColNames(train_x.data)
     changeColNames(test_x.data)
 
-    if find_method == "IQR":
+    '''
+        if find_method == "IQR":
         np.savetxt("train_x.data_INIZIALE_iqr.csv", train_x.data, delimiter=",")
         np.savetxt("train_y.data_INIZIALE_iqr.csv", train_y.data, delimiter=",")
     else:
 
         np.savetxt("train_x.data_INIZIALE_z.csv", train_x.data, delimiter=",")
         np.savetxt("train_y.data_INIZIALE_z.csv", train_y.data, delimiter=",")
+        
+    '''
 
     # calcoliamo il numero di valori mancanti su train e test (n/a)
     naMean(train_x,test_x)
@@ -139,6 +137,8 @@ def minMaxScaler(train_x, test_x, train_y, test_y):
 #sostuisce outliers con media per ogni colonna
 def outlierMean(train_x, test_x, colName):
 
+    outliersDict = {}
+
     # copio dataset in lista y e tolgo outliers
     y = train_x.data[colName].copy()
     for i in train_x.outliers:
@@ -147,7 +147,10 @@ def outlierMean(train_x, test_x, colName):
     mean = y.mean()
     print("\n\n -- Media di ",colName," : ", mean)
     train_x.result = mean
-    test_x.result = mean
+    outliersDict[colName] = mean
+
+    if test_x is not None:
+        test_x.result = mean
     return mean
 
 #questa funzione copia in dataColumn tutti gli elementi di una colonna, e per ogni colonna
@@ -176,7 +179,7 @@ def outlierDetection(train_x, test_x):
             ax.boxplot([train_x.dataColumn, test_x.dataColumn])
             plt.show()
 
-            
+
 
 
         if find_method == "ZSCORE":
@@ -304,6 +307,8 @@ def outZSCORE(dataset,colName):
 #il training che il test, poichè devo modificarli entrambi colonna x colonna
 def knnDetectionTRAIN(train_x, test_x, colName):
 
+    outliersDict = {}
+
     # copio dataset in lista y e tolgo outliers
     y = train_x.data[colName].copy()
     for i in train_x.outliers:
@@ -338,6 +343,7 @@ def knnDetectionTRAIN(train_x, test_x, colName):
     result = []
     for i in train_x.outliers:
         result.append(neigh.predict([[i]]))
+
     # print("result: ", result[0][0],result[1][0])
     #print("\n\nresult: ", result)
 
@@ -346,17 +352,20 @@ def knnDetectionTRAIN(train_x, test_x, colName):
     #i duplicati, poichè avrò un solo result per gli oulliers inferiori e un solo resutl per quelli superiori
     result = np.unique(result, axis=0)
     print("result senza duplicati: ", result)
+    outliersDict[colName] = result
 
     if len(result) > 2:
-        print("CECILIA AIUTOOOOOOOOOOOOOOOOOOOOO")
+        print("Lenght result >2")
+        return -1
 
     train_x.result = result
-    test_x.result = result
+    if test_x is not None:
+        test_x.result = result
+
+    return outliersDict
 
 
 def substituteOutliers(dataset, colName):
-
-    #print("\n\n--------- KNN TEST ------ ")
 
 
     '''
@@ -442,6 +451,41 @@ def changeColNames(dfDataset):
     print("TOTALE DOPO-      ", dfDataset)
 
 
+#sostuisce NaN con media per ogni colonna
+def naMean2(train_x, test_x):
+
+    naDict = {}
+
+    getNaCount(train_x)
+    print("train x na count : ", train_x.naCount)
+    if test_x is not None:
+        getNaCount(test_x)
+        print("test x na count : ", test_x.naCount)
+
+    # print(train_dataset['F1'].mean())
+
+    print("\n\nMEDIA PER OGNI ATTRIBUTO: ")
+
+    string = "F"
+    for i in range(1, 21):
+        currColumn = string + str(i)
+        currMean = train_x.data[currColumn].mean()
+
+        print(currColumn, ": ", currMean)
+        naDict[currColumn] = currMean
+
+        train_x.data[currColumn] = train_x.data[currColumn].fillna(currMean)
+        if test_x is not None:
+            test_x.data[currColumn] = test_x.data[currColumn].fillna(currMean)
+
+    # controlliamo nuovamente che train e test siano senza n/a
+    getNaCount(train_x)
+    print("train x na count : ", train_x.naCount)
+    if test_x is not None:
+        getNaCount(test_x)
+        print("test x na count : ", test_x.naCount)
+
+    return naDict
 
 #sostuisce NaN con media per ogni colonna
 def naMean(train_x, test_x):
@@ -494,7 +538,7 @@ def main():
     x = dataset.iloc[:, 0:20].values
     y = dataset.iloc[:, 20].values
 
-    openFiles(train_x, test_x, train_y, test_y, x, y)
+    preProcessing(train_x, test_x, train_y, test_y, x, y)
     print(find_method, "---", substitute_method, "---", scaleType)
     crossValidation.cross(train_x, test_x, train_y, test_y, find_method)
 
