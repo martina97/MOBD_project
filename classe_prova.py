@@ -6,6 +6,7 @@ import pandas as pd
 import tensorflow as tf
 import matplotlib
 from matplotlib import pyplot as plt
+from sklearn.decomposition import PCA
 from sklearn.impute import KNNImputer
 from sklearn.neighbors import KNeighborsRegressor
 
@@ -18,13 +19,11 @@ import crossValidation
 #find_method = "IQR"
 find_method = "ZSCORE"
 
-#substitute_method = "KNN"
-substitute_method = "MEAN"
+substitute_method = "KNN"
+#substitute_method = "MEAN"
 
-#todo: ALTRO METODO: MEDIA
-
-scaleType = "STANDARD"
-#scaleType = "MINMAX"
+#scaleType = "STANDARD"
+scaleType = "MINMAX"
 
 class Dataset:
   def __init__(self, name, data):
@@ -70,9 +69,25 @@ def openFiles(train_x, test_x, train_y, test_y, x, y):
     #normalizziamo i dati
     scale(train_x, test_x, train_y, test_y)
 
+    #applichiamo PCA
+    pca(train_x, test_x)
 
 
+def pca(train_x, test_x):
+    pca = PCA()
+    train_x.data = pca.fit_transform(train_x.data)
+    test_x.data = pca.transform(test_x.data)
+    explained_variance = pca.explained_variance_ratio_
+    count = 0
+    for i in explained_variance:
+        count = count + 1
+        print("explained_variance", count, "--->", i)
 
+    print("explained_variance:", explained_variance)
+
+    pca = PCA(n_components=15)
+    train_x.data = pca.fit_transform(train_x.data)
+    test_x.data = pca.transform(test_x.data)
 
 
 def scale(train_x, test_x, train_y, test_y):
@@ -97,7 +112,7 @@ def matrix(train_x, test_x, train_y, test_y):
     print("MATRIX Y: ",test_x.data.shape, test_y.data.shape)
 
 
-def standardScaler(train_x, test_x, train_y, test_y):
+def  standardScaler(train_x, test_x, train_y, test_y):
     '''
     È buona norma normalizzare le feature che utilizzano scale e intervalli diversi.
     Non normalizzare i dati rende l'allenamento più difficile e rende il modello risultante
@@ -479,8 +494,9 @@ def main():
     x = dataset.iloc[:, 0:20].values
     y = dataset.iloc[:, 20].values
 
-    openFiles(train_x, test_x, train_y, test_y,x,y)
-    #crossValidation.cross(train_x,test_x,train_y,test_y,find_method)
+    openFiles(train_x, test_x, train_y, test_y, x, y)
+    print(find_method, "---", substitute_method, "---", scaleType)
+    crossValidation.cross(train_x, test_x, train_y, test_y, find_method)
 
 
 
