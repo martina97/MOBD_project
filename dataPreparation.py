@@ -138,7 +138,7 @@ def  standardScaler(train_x, test_x):
 def minMaxScaler(train_x, test_x):
 
     #feature_range=(0, 2)
-    scaler_x = prep.MinMaxScaler(feature_range=(-2.5, 2.5))
+    scaler_x = prep.MinMaxScaler(feature_range=(0, 1))
     scaler_x.fit(train_x.data)
 
     train_x.data = scaler_x.transform(train_x.data)
@@ -158,7 +158,8 @@ def outlierMean(train_x, test_x, colName):
     mean = y.mean()
     print("\n\n -- Media di ",colName," : ", mean)
     train_x.result = mean
-    train_x.outliersDict[colName] = mean
+    appendDict(colName,mean,train_x)
+    #train_x.outliersDict[colName] = mean
 
     if test_x is not None:
         test_x.result = mean
@@ -282,6 +283,14 @@ def outIQR(dataset,title,colName):
 #input: colonna training set della quale troviamo gli outliers
 #output: lista outliers per la colonna
 
+
+def createDataColumn(dataset,colName):
+
+    dataset.dataColumn = np.array([])
+
+    for colElement in dataset.data[colName]:
+        dataset.dataColumn = np.append(dataset.dataColumn, colElement)
+
 def outZSCORE(dataset,colName):
     '''
     calcola gli outliers con il metodo ZSCORE
@@ -290,11 +299,14 @@ def outZSCORE(dataset,colName):
     :return:
     '''
 
+
     dataset.dataColumn = np.array([])
 
     for colElement in dataset.data[colName]:
         dataset.dataColumn = np.append(dataset.dataColumn, colElement)
 
+
+    #print("dataColumn: ", dataset.dataColumn)
     count = 0
     threshold = 3
     mean = np.mean(dataset.dataColumn)
@@ -360,7 +372,8 @@ def knnDetectionTRAIN(train_x, test_x, colName):
     #i duplicati, poichè avrò un solo result per gli oulliers inferiori e un solo resutl per quelli superiori
     result = np.unique(result, axis=0)
     print("result senza duplicati: ", result)
-    train_x.outliersDict[colName] = result
+    appendDict(colName,result[0][0],train_x)
+    #train_x.outliersDict[colName] = result
     #outliersDict[colName] = result
 
     if len(result) > 2:
@@ -462,7 +475,6 @@ def changeColNames(dfDataset):
 #sostuisce NaN con media per ogni colonna
 def naMean2(train_x, test_x):
 
-    naDict = {}
 
     getNaCount(train_x)
     print("train x na count : ", train_x.naCount)
@@ -480,7 +492,9 @@ def naMean2(train_x, test_x):
         currMean = train_x.data[currColumn].mean()
 
         print(currColumn, ": ", currMean)
-        naDict[currColumn] = currMean
+        appendDict(currColumn, currMean, train_x)
+        #naDict[currColumn] = currMean
+        #train_x.outliersDict[currColumn] = currMean
 
         train_x.data[currColumn] = train_x.data[currColumn].fillna(currMean)
         if test_x is not None:
@@ -493,7 +507,20 @@ def naMean2(train_x, test_x):
         getNaCount(test_x)
         print("test x na count : ", test_x.naCount)
 
-    return naDict
+
+
+def appendDict(key, value, train_x):
+
+        if key in train_x.outliersDict:
+            # append the new number to the existing array at this slot
+            train_x.outliersDict[key].append(value)
+        else:
+            # create a new array in this slot
+            train_x.outliersDict[key] = [value]
+
+
+
+
 
 #sostuisce NaN con media per ogni colonna
 def naMean(train_x, test_x):
@@ -548,6 +575,8 @@ def main():
 
     preProcessing(train_x, test_x, train_y, test_y, x, y)
     print(find_method, "---", substitute_method, "---", scaleType)
+
+
     crossValidation.cross(train_x, test_x, train_y, test_y, find_method)
 
 

@@ -4,7 +4,7 @@ import sklearn.metrics as metrics
 import sklearn.svm as svm
 from sklearn.neural_network import MLPClassifier
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.model_selection import cross_val_score
 
 
@@ -22,6 +22,7 @@ def cross(train_x, test_x, train_y, test_y,method):
     #randomForest(train_x, train_y)
     #svm_param_selection(train_x, train_y, n_folds=5, metric='f1_macro')
     #decisionTree(train_x, train_y, n_folds=5, metric='f1_macro')
+
     clf = mlp(train_x, train_y, n_folds=5, metric='f1_macro')
     evaluate_classifier(clf, test_x, test_y)
 
@@ -229,8 +230,15 @@ def mlp(train_x, train_y, n_folds, metric):
                          }
 
     parameter_space3 = {
-        'hidden_layer_sizes': [(50, 50, 50), (50, 100, 50), (100,)],
-        'alpha': [0.5, 1, 1.2],
+        'hidden_layer_sizes': [(50, 50, 50), (50, 100, 50), (100,150,100)],
+        'alpha': [0.5, 1, 1.5],
+        'learning_rate_init' : [0.01, 0.001],
+        'solver': ['sgd']
+        #'epsilon': [1e-08],
+        #'tol': [1e-05],
+        #'activation': ['logistic', 'relu', 'tanh', 'identity'],
+        #'learning_rate': ['constant', 'invscaling', 'adaptive']
+        
         #'tol': [1e-2, 1e-3, 1e-4, 1e-5, 1e-6],
         #'epsilon': [1e-3, 1e-7, 1e-8, 1e-9]
 
@@ -248,6 +256,10 @@ def mlp(train_x, train_y, n_folds, metric):
     print("best_result MLP: ", best_result)
 
     return clf
+
+
+
+
 
 
 # utilizziamo ora il miglior modello ottenuto al termine della cross-validation per fare previsioni sui dati di test\n",

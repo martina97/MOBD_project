@@ -1,3 +1,5 @@
+import csv
+
 import sklearn
 import sklearn.preprocessing as prep
 import numpy as np
@@ -7,6 +9,7 @@ from sklearn import model_selection
 from sklearn.decomposition import PCA
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neural_network import MLPClassifier
+import csv
 
 import pickle
 import dataPreparation
@@ -40,16 +43,19 @@ def preProcessing_train(trainingSet_x, trainingSet_y, train_x, train_y):
 
     dataPreparation.changeColNames(trainingSet_x.data)
 
-    naDict = dataPreparation.naMean2(trainingSet_x, None)
-    print ("dictionary medie: ", naDict)
+    dataPreparation.naMean2(trainingSet_x, None)
+    print ("dictionary medie: ", trainingSet_x.outliersDict)
 
     outliers_train(trainingSet_x)
     print("dictionary outliers: ", trainingSet_x.outliersDict)
+
 
     dataPreparation.scale(trainingSet_x, None, trainingSet_y, None)
 
     dataPreparation.pca(trainingSet_x, None)
 
+
+    saveDataInCSV(trainingSet_x)
 
 def evaluation_train(trainingSet_x, trainingSet_y):
 
@@ -137,6 +143,27 @@ def outliers_train(trainingSet_x):
         plt.show()
         '''
 
+def saveDataInCSV(trainingSet_x):
+
+    file_path = './preProcessingValues.csv'
+
+    df = pd.DataFrame(trainingSet_x.outliersDict)
+    df.to_csv(file_path)
+
+    f = open(file_path, 'r')
+    reader = csv.reader(f)
+    mylist = list(reader)
+    f.close()
+    mylist[1][0] = 'Replacement_NaN'
+    mylist[2][0] = 'Replacement_outliers'
+    my_new_list = open(file_path, 'w', newline='')
+    csv_writer = csv.writer(my_new_list)
+    csv_writer.writerows(mylist)
+    my_new_list.close()
+
+    preProcDataset = pd.read_csv('./preProcessingValues.csv')
+
+
 
 
 def main():
@@ -151,6 +178,8 @@ def main():
     train_y = dataset.iloc[:, 20].values
 
     preProcessing_train(trainingSet_x, trainingSet_y, train_x, train_y)
+
+    print(find_method, "---", substitute_method, "---", scaleType)
     clf = evaluation_train(trainingSet_x, trainingSet_y)
     save_object(clf,'returned_clf.pkl')
 
