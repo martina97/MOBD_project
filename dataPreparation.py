@@ -14,8 +14,8 @@ import crossValidation
 #find_method = "IQR"
 find_method = "ZSCORE"
 
-substitute_method = "KNN"
-#substitute_method = "MEAN"
+#substitute_method = "KNN"
+substitute_method = "MEAN"
 
 #scaleType = "STANDARD"
 scaleType = "MINMAX"
@@ -28,6 +28,7 @@ class Dataset:
     self.outliers = None    #lista outliers di una colonna
     self.dataColumn = None  #elementi di una colonna
     self.result = None
+    self.outliersDict = {}
 
 
 def preProcessing(train_x, test_x, train_y, test_y, x, y):
@@ -74,7 +75,9 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
 def pca(train_x, test_x):
     pca = PCA()
     train_x.data = pca.fit_transform(train_x.data)
-    test_x.data = pca.transform(test_x.data)
+
+    if test_x is not None:
+        test_x.data = pca.transform(test_x.data)
     explained_variance = pca.explained_variance_ratio_
     count = 0
     for i in explained_variance:
@@ -85,17 +88,19 @@ def pca(train_x, test_x):
 
     pca = PCA(n_components=15)
     train_x.data = pca.fit_transform(train_x.data)
-    test_x.data = pca.transform(test_x.data)
+
+    if test_x is not None:
+        test_x.data = pca.transform(test_x.data)
 
 
 def scale(train_x, test_x, train_y, test_y):
 
-    matrix(train_x, test_x, train_y, test_y)
+        matrix(train_x, test_x, train_y, test_y)
 
-    if scaleType=="STANDARD":
-        standardScaler(train_x, test_x, train_y, test_y)
-    else:
-        minMaxScaler(train_x, test_x, train_y, test_y)
+        if scaleType=="STANDARD":
+            standardScaler(train_x, test_x)
+        else:
+            minMaxScaler(train_x, test_x)
 
 
 def matrix(train_x, test_x, train_y, test_y):
@@ -103,14 +108,18 @@ def matrix(train_x, test_x, train_y, test_y):
     train_x.data = np.float64(train_x.data)
     train_y.data = np.float64(train_y.data)
     train_y.data = train_y.data.reshape((len(train_y.data), 1))
-    test_x.data = np.float64(test_x.data)
-    test_y.data = np.float64(test_y.data)
-    test_y.data = test_y.data.reshape((len(test_y.data), 1))
+
+    if test_x is not None or test_y is not None:
+        test_x.data = np.float64(test_x.data)
+        test_y.data = np.float64(test_y.data)
+        test_y.data = test_y.data.reshape((len(test_y.data), 1))
+        print("MATRIX Y: ", test_x.data.shape, test_y.data.shape)
+
     print("MATRIX X: ",train_x.data.shape, train_y.data.shape)
-    print("MATRIX Y: ",test_x.data.shape, test_y.data.shape)
 
 
-def  standardScaler(train_x, test_x, train_y, test_y):
+
+def  standardScaler(train_x, test_x):
     '''
     È buona norma normalizzare le feature che utilizzano scale e intervalli diversi.
     Non normalizzare i dati rende l'allenamento più difficile e rende il modello risultante
@@ -120,24 +129,26 @@ def  standardScaler(train_x, test_x, train_y, test_y):
     scaler = sklearn.preprocessing.StandardScaler()
     scaler.fit(train_x.data) # ATTENTIONE! SI USA LA MEDIA E VARIANZA DEL TRAINING SET
     train_x.data = scaler.transform(train_x.data)
-    test_x.data = scaler.transform(test_x.data)
-    print('SCALE Train:', train_x.data.shape, train_y.data.shape)
-    print('SCALE Test:', test_x.data.shape, test_y.data.shape)
 
-def minMaxScaler(train_x, test_x, train_y, test_y):
+    if test_x is not None:
 
-    scaler_x = prep.MinMaxScaler(feature_range=(-1, 1))
+        test_x.data = scaler.transform(test_x.data)
+
+
+def minMaxScaler(train_x, test_x):
+
+    #feature_range=(0, 2)
+    scaler_x = prep.MinMaxScaler(feature_range=(-2.5, 2.5))
     scaler_x.fit(train_x.data)
 
     train_x.data = scaler_x.transform(train_x.data)
-    test_x.data = scaler_x.transform(test_x.data)
+    if test_x is not None:
+        test_x.data = scaler_x.transform(test_x.data)
 
 
 
 #sostuisce outliers con media per ogni colonna
 def outlierMean(train_x, test_x, colName):
-
-    outliersDict = {}
 
     # copio dataset in lista y e tolgo outliers
     y = train_x.data[colName].copy()
@@ -147,11 +158,11 @@ def outlierMean(train_x, test_x, colName):
     mean = y.mean()
     print("\n\n -- Media di ",colName," : ", mean)
     train_x.result = mean
-    outliersDict[colName] = mean
+    train_x.outliersDict[colName] = mean
 
     if test_x is not None:
         test_x.result = mean
-    return mean
+
 
 #questa funzione copia in dataColumn tutti gli elementi di una colonna, e per ogni colonna
 #si gestiscono gli outlier con metodi opportuni
@@ -290,12 +301,9 @@ def outZSCORE(dataset,colName):
     std = np.std(dataset.dataColumn)
     dataset.outliers = []
     for i in dataset.dataColumn:
-        # print("vaffanculo2")
-
         z = (i - mean) / std
-        if z > threshold:
-            # print("vaffanculo3")
 
+        if z > threshold:
             count = count + 1
             dataset.outliers.append(i)
             print("-- outlier n ", count, ":  ", dataset.outliers[count - 1])
@@ -307,7 +315,7 @@ def outZSCORE(dataset,colName):
 #il training che il test, poichè devo modificarli entrambi colonna x colonna
 def knnDetectionTRAIN(train_x, test_x, colName):
 
-    outliersDict = {}
+
 
     # copio dataset in lista y e tolgo outliers
     y = train_x.data[colName].copy()
@@ -352,7 +360,8 @@ def knnDetectionTRAIN(train_x, test_x, colName):
     #i duplicati, poichè avrò un solo result per gli oulliers inferiori e un solo resutl per quelli superiori
     result = np.unique(result, axis=0)
     print("result senza duplicati: ", result)
-    outliersDict[colName] = result
+    train_x.outliersDict[colName] = result
+    #outliersDict[colName] = result
 
     if len(result) > 2:
         print("Lenght result >2")
@@ -362,7 +371,6 @@ def knnDetectionTRAIN(train_x, test_x, colName):
     if test_x is not None:
         test_x.result = result
 
-    return outliersDict
 
 
 def substituteOutliers(dataset, colName):
@@ -392,7 +400,7 @@ def substituteOutliers(dataset, colName):
 
     if substitute_method == "MEAN":
         for i in dataset.outliers:
-            dataset.data[colName][dataset.data[colName] == i] = (dataset.result)
+            dataset.data[colName][dataset.data[colName] == i] = dataset.result
 
     #checkOutliersAfterKNN(dataset,colName)
 

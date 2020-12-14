@@ -8,14 +8,10 @@ from sklearn.neighbors import KNeighborsRegressor
 
 import dataPreparation
 
-#find_method = "IQR"
-find_method = "ZSCORE"
+find_method = dataPreparation.find_method
+substitute_method = dataPreparation.substitute_method
+scaleType = dataPreparation.scaleType
 
-substitute_method = "KNN"
-#substitute_method = "MEAN"
-
-#scaleType = "STANDARD"
-scaleType = "MINMAX"
 
 class Dataset:
   def __init__(self, name, data):
@@ -25,6 +21,7 @@ class Dataset:
     self.outliers = None    #lista outliers di una colonna
     self.dataColumn = None  #elementi di una colonna
     self.result = None
+    self.outliersDict = {}
 
 
 def preProcessing_train(trainingSet_x, trainingSet_y, train_x, train_y):
@@ -43,6 +40,13 @@ def preProcessing_train(trainingSet_x, trainingSet_y, train_x, train_y):
     naDict = dataPreparation.naMean2(trainingSet_x, None)
     print ("dictionary medie: ", naDict)
 
+    outliers_train(trainingSet_x)
+    print("dictionary outliers: ", trainingSet_x.outliersDict)
+
+    dataPreparation.scale(trainingSet_x, None, trainingSet_y, None)
+
+    dataPreparation.pca(trainingSet_x, None)
+
 
 def outliers_train(trainingSet_x):
 
@@ -51,7 +55,7 @@ def outliers_train(trainingSet_x):
 
         title = colName + ' before KNN'
 
-        # metodi diversi per il calcolo di outliers sia per train_x che per test_x
+        #metodi diversi per il calcolo di outliers sia per train_x che per test_x
         if find_method == "IQR":
 
             print("\nOUTLIERS WITH IQR")
@@ -87,6 +91,8 @@ def outliers_train(trainingSet_x):
         dataPreparation.substituteOutliers(trainingSet_x, colName)
         # controllo outliers dopo aver applicato KNN
         dataPreparation.checkOutliersAfterReplacement(trainingSet_x, colName)
+
+        #print("dictionary outliers: ",outliersDict)
 
         '''
         fig1, ax = plt.subplots()

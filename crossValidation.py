@@ -255,7 +255,7 @@ def evaluate_classifier(classifier, test_x, test_y):
     pred_y = classifier.predict(test_x.data)
     confusion_matrix = metrics.confusion_matrix(test_y.data, pred_y)
     print(confusion_matrix)
-    f1_score = metrics.f1_score(test_y.data, pred_y)
+    f1_score = metrics.f1_score(test_y.data, pred_y, average='macro')
     acc_score = metrics.accuracy_score(test_y.data, pred_y)
     print('F1: ', f1_score)
     print('Accuracy: ', acc_score)
