@@ -8,6 +8,7 @@ from sklearn.decomposition import PCA
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neural_network import MLPClassifier
 
+import pickle
 import dataPreparation
 
 find_method = dataPreparation.find_method
@@ -49,12 +50,14 @@ def preProcessing_train(trainingSet_x, trainingSet_y, train_x, train_y):
 
     dataPreparation.pca(trainingSet_x, None)
 
+
 def evaluation_train(trainingSet_x, trainingSet_y):
 
     n_folds = 5
     metric = 'f1_macro'
 
     classifier = MLPClassifier(max_iter=200)
+
     parameter_space = {
         'hidden_layer_sizes': [(50, 50, 50), (50, 100, 50), (100,)],
         'alpha': [0.5, 1, 1.2],
@@ -71,6 +74,9 @@ def evaluation_train(trainingSet_x, trainingSet_y):
 
     return clf
 
+def save_object(obj, filename):
+    with open(filename, 'wb') as output:  # Overwrites any existing file.
+        pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
 
 
 
@@ -146,6 +152,7 @@ def main():
 
     preProcessing_train(trainingSet_x, trainingSet_y, train_x, train_y)
     clf = evaluation_train(trainingSet_x, trainingSet_y)
+    save_object(clf,'returned_clf.pkl')
 
 if __name__ == '__main__':
     main()
