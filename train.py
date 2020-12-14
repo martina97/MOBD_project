@@ -3,8 +3,10 @@ import sklearn.preprocessing as prep
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+from sklearn import model_selection
 from sklearn.decomposition import PCA
 from sklearn.neighbors import KNeighborsRegressor
+from sklearn.neural_network import MLPClassifier
 
 import dataPreparation
 
@@ -46,6 +48,30 @@ def preProcessing_train(trainingSet_x, trainingSet_y, train_x, train_y):
     dataPreparation.scale(trainingSet_x, None, trainingSet_y, None)
 
     dataPreparation.pca(trainingSet_x, None)
+
+def evaluation_train(trainingSet_x, trainingSet_y):
+
+    n_folds = 5
+    metric = 'f1_macro'
+
+    classifier = MLPClassifier(max_iter=200)
+    parameter_space = {
+        'hidden_layer_sizes': [(50, 50, 50), (50, 100, 50), (100,)],
+        'alpha': [0.5, 1, 1.2],
+    }
+
+
+    clf = model_selection.GridSearchCV(classifier, parameter_space, scoring=metric, cv=n_folds, refit=True, n_jobs=-1)
+    print("MLP")
+    clf.fit(trainingSet_x.data, trainingSet_y.data.ravel())
+    best_parameters = clf.best_params_
+    print("\n\nbest_parameters MLP : ", best_parameters)
+    best_result = clf.best_score_
+    print("best_result MLP: ", best_result)
+
+    return clf
+
+
 
 
 def outliers_train(trainingSet_x):
@@ -119,6 +145,7 @@ def main():
     train_y = dataset.iloc[:, 20].values
 
     preProcessing_train(trainingSet_x, trainingSet_y, train_x, train_y)
+    clf = evaluation_train(trainingSet_x, trainingSet_y)
 
 if __name__ == '__main__':
     main()

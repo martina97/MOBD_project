@@ -14,8 +14,8 @@ import crossValidation
 #find_method = "IQR"
 find_method = "ZSCORE"
 
-#substitute_method = "KNN"
-substitute_method = "MEAN"
+substitute_method = "KNN"
+#substitute_method = "MEAN"
 
 #scaleType = "STANDARD"
 scaleType = "MINMAX"

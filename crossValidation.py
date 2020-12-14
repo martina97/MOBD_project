@@ -161,7 +161,7 @@ print()
 
 def mlp(train_x, train_y, n_folds, metric):
 
-    classifier = MLPClassifier(max_iter = 200)
+    classifier = MLPClassifier(max_iter=200)
     #classifier = MLPClassifier()
 
     alpha1 = 1e-4
