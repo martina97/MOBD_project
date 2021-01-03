@@ -230,9 +230,11 @@ def mlp(train_x, train_y, n_folds, metric):
                          }
 
     parameter_space3 = {
-        'hidden_layer_sizes': [(50, 50, 50), (50, 100, 50), (100,150,100)],
+        'hidden_layer_sizes': [(50, 50, 50), (50, 100, 50), (100,150,100),(200,250,200)],
+        #'hidden_layer_sizes': [ (50, 100, 50), (100, 150, 100), (200, 250, 200)],
+
         'alpha': [0.5, 1, 1.5],
-        'learning_rate_init' : [0.01, 0.001],
+        'learning_rate_init' : [0.02, 0.01, 0.001],
         'solver': ['sgd']
         #'epsilon': [1e-08],
         #'tol': [1e-05],

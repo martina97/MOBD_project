@@ -4,15 +4,20 @@ import sklearn.preprocessing as prep
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+from scipy.stats import stats
 from sklearn.decomposition import PCA
 from sklearn.neighbors import KNeighborsRegressor
 
 import crossValidation
+from sklearn.cluster import DBSCAN
+from matplotlib import cm
 
 #outliers:
 
 #find_method = "IQR"
-find_method = "ZSCORE"
+#find_method = "ZSCORE"
+find_method = "ZSCORE2"
+#find_method = "DBSCAN"
 
 substitute_method = "KNN"
 #substitute_method = "MEAN"
@@ -59,17 +64,44 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
         
     '''
 
+
+
+
     # calcoliamo il numero di valori mancanti su train e test (n/a)
     naMean(train_x,test_x)
 
+    #dbScan(train_x)
+    #zScore(train_x)
+
+
     #outliers detection
-    outlierDetection(train_x, test_x)
+    if find_method == "ZSCORE2":
+        outlierDetection_zScoreGlobal(train_x, test_x)
+
+
+    else:
+        outlierDetection(train_x, test_x)
+
+
+    #dbScan(train_x, train_y)
+    #dbScan(test_x, test_y)
 
     #normalizziamo i dati
     scale(train_x, test_x, train_y, test_y)
 
+    #dbScan(train_x)
+
     #applichiamo PCA
     pca(train_x, test_x)
+
+def zScore(dataset):
+    z = np.abs(stats.zscore(dataset.data))
+    print(z)
+    threshold = 3
+    print(np.where(z > 3))
+    print(len(np.where(z > 3)[0]))
+    return z
+
 
 
 def pca(train_x, test_x):
@@ -168,6 +200,95 @@ def outlierMean(train_x, test_x, colName):
 #questa funzione copia in dataColumn tutti gli elementi di una colonna, e per ogni colonna
 #si gestiscono gli outlier con metodi opportuni
 
+
+def outlierMedian(train_x, test_x, colName):
+
+    # copio dataset in lista y e tolgo outliers
+    y = train_x.data[colName].copy()
+    for i in train_x.outliers:
+        y = y[y != i]
+
+    median = y.median()
+    print("\n\n -- Media di ", colName, " : ", median)
+    train_x.result = median
+    appendDict(colName, median, train_x)
+    # train_x.outliersDict[colName] = mean
+
+    if test_x is not None:
+        test_x.result = median
+
+
+
+def outlierDetection_zScoreGlobal(train_x, test_x):
+    if find_method == "ZSCORE2":
+
+        # z = z-Score del dataset
+        z_train = zScore(train_x)
+        z_test = zScore(test_x)
+        print("z_train_len == ", len(z_train[0]))
+
+        #serve per scorrere le colonne quando uso ZSCORE2
+        col_z = 0
+
+        for colName in train_x.data.columns:
+            print("\n\ncolName = ", colName)
+
+            z_array_train = np.where(z_train > 3)
+            print("\n\nOUTLIERS WITH ZSCORE_global\n")
+            print("\n------ train ------")
+            outZSCORE_global(train_x, z_array_train, col_z, z_train, colName)
+            print("\n------ test ------")
+            z_array_test = np.where(z_test > 3)
+
+            outZSCORE_global(test_x, z_array_test, col_z, z_test, colName)
+
+            col_z = col_z +1
+
+            if substitute_method == "KNN":
+
+                # una volta che ho la lista di outliers, li sostituisco con il metodo KNN, che avrà come input sia
+                # il training che il test, poichè devo modificarli entrambi colonna x colonna
+                knnDetectionTRAIN(train_x, test_x, colName)
+
+            else:
+                outlierMean(train_x, test_x, colName)
+                # outlierMedian(train_x,test_x,colName)
+
+            # sostuituiamo i risultati con gli outliers nel dataset originario
+            substituteOutliers(train_x, colName)
+
+            print("\n\n--------- KNN TEST ------ ")
+            substituteOutliers(test_x, colName)
+
+
+        #abbiamo modificato il dataset sostituendo gli outliers
+        z_train = zScore(train_x)
+        z_test = zScore(test_x)
+        col_z = 0
+
+        for colName in train_x.data.columns:
+            z_array_train = np.where(z_train > 3)
+            print("\n\nOUTLIERS WITH ZSCORE_global\n")
+            print("\n------ train ------")
+            outliers = outZSCORE_global(train_x, z_array_train, col_z, z_train, colName)
+            if len(outliers) == 0:
+                print(colName, ": KNN terminato, outliers sostituiti\n\n")
+            else:
+                print("no")
+
+
+            print("\n------ test ------")
+            z_array_test = np.where(z_test > 3)
+            outliers = outZSCORE_global(test_x, z_array_test, col_z, z_test, colName)
+            if len(outliers) == 0:
+                print(colName, ": KNN terminato, outliers sostituiti\n\n")
+
+            else:
+                #todo: errore da fare
+                print("no")
+
+            col_z = col_z + 1
+
 def outlierDetection(train_x, test_x):
 
     for colName in train_x.data.columns:
@@ -204,6 +325,17 @@ def outlierDetection(train_x, test_x):
 
 
 
+
+
+        '''
+        if find_method == "DBSCAN":
+            print("\n\nOUTLIERS WITH DBSCAN\n")
+            print("\n------ train ------")
+            dbScan(train_x, colName)
+            print("\n------ test ------")
+            dbScan(test_x, colName)
+        '''
+
         if substitute_method == "KNN" :
 
             #una volta che ho la lista di outliers, li sostituisco con il metodo KNN, che avrà come input sia
@@ -212,11 +344,14 @@ def outlierDetection(train_x, test_x):
 
         else:
             outlierMean(train_x,test_x,colName)
+            #outlierMedian(train_x,test_x,colName)
+
 
         # sostuituiamo i risultati con gli outliers nel dataset originario
         substituteOutliers(train_x, colName)
         # controllo outliers dopo aver applicato KNN
         checkOutliersAfterReplacement(train_x, colName)
+
 
         print("\n\n--------- KNN TEST ------ ")
         substituteOutliers(test_x, colName)
@@ -231,6 +366,28 @@ def outlierDetection(train_x, test_x):
 
         plt.show()
 
+
+def dbScan(dataset_x, dataset_y):
+
+    model = DBSCAN(
+     eps = 5,
+     metric='euclidean',
+     min_samples = 5,
+     n_jobs = -1).fit_predict(dataset_x.data)
+
+    #clusters = model.fit_predict(train_x.data)
+    mask = model != -1
+
+    outliers = dataset_x.data[mask]
+    print("model ==== ", model, "\n\n")
+
+    print("outliers ==== ", outliers, "\n\n")
+
+    print("mask------------", mask)
+
+    dataset_x.data  = dataset_x.data.iloc[mask, :]
+    dataset_y.data =  dataset_y.data.iloc[mask]
+    print( dataset_x.data.shape,  dataset_y.data.shape)
 
 
 #calcola gli outliers con il metodo IQR e stampa il boxplot
@@ -323,6 +480,41 @@ def outZSCORE(dataset,colName):
     return dataset.outliers
 
 
+def outZSCORE_global(dataset, z_array, col_z, z,colName):
+    # sto in F1 e devo prendere z_array[1] che hanno valore 0
+
+
+    col_index = np.where(z_array[1] == col_z)  # contiene gli indici in z_array[1] che indicano la colonna
+    row_num = []
+    for i in col_index:
+        row_num.append(z_array[0][i])
+
+    print("col_index ===== ", col_index)
+    print("row_index ===== ", row_num)
+
+    dataset.outliers = []
+
+
+    for j in row_num[0]:
+        # print("j=",j)
+        #dataset.outliers.append(z[j][col_z])
+        dataset.outliers.append(dataset.data[colName][j])
+        print("outlier == ",dataset.data[colName][j])
+
+
+
+    print(dataset.outliers)
+
+
+
+    #print("cccccccccccc=== ", dataset.outliers[0])
+
+
+
+
+
+    return dataset.outliers
+
 #data la lsita di outliers di una colonna, li sostituisco con il metodo KNN, che avrà come input sia
 #il training che il test, poichè devo modificarli entrambi colonna x colonna
 def knnDetectionTRAIN(train_x, test_x, colName):
@@ -332,23 +524,32 @@ def knnDetectionTRAIN(train_x, test_x, colName):
     # copio dataset in lista y e tolgo outliers
     y = train_x.data[colName].copy()
     for i in train_x.outliers:
+        #print("i ==== ", i)
         y = y[y != i]
 
+    print("y ==== ", y)
     # ORA ABBIAMO TOLTO E SOSTITUITO OUTLIER : USIAMO KNN !!!!!
-
+    print("len(train_x.outliers) === ", len(train_x.outliers))
     lenX = len(train_x.data[colName]) - len(train_x.outliers)
+    print("lenX == ", lenX)
+    print("lenY == ", len(y))
+
     rows = lenX
     col = 1
     X = [[0 for i in range(col)] for j in range(rows)]  # inizializzo X come lista 2D
     count_X_position = 0
 
+    print("X ==== ", X)
+
     # metto dati nella lista 2D "X"
 
     # per creare lista 2D "X" per poterla usare in KNN in cui devono andarci tutti i valori di data2 tranne outliers
     # così poi a KNN gli do X senza outlier che gli passo separatamente, in modo da calcolare media dei k vicini e sostituirli
-    for i in y:
+    for k in y:
         # print("count X = ", count_X_position,"     data2_elem = ",i)
-        X[count_X_position][0] = i
+        #print("k ==== ", k)
+
+        X[count_X_position][0] = k
         # print("X[count_X_position][0] = ", X[count_X_position][0])
         count_X_position = count_X_position + 1
 
@@ -399,7 +600,7 @@ def substituteOutliers(dataset, colName):
     -- outlier n  6 :   -3.3824899824206835
     '''
     if substitute_method == "KNN":
-        if find_method == "IQR" :
+        if find_method == "IQR":
 
             # sostuituiamo i risultati con gli outliers nel dataset originario
             for i in dataset.outliers:
@@ -407,9 +608,20 @@ def substituteOutliers(dataset, colName):
                 dataset.data[colName][dataset.data[colName] == i] = (res)
 
         if find_method == "ZSCORE" :
-
             for i in dataset.outliers:
                 dataset.data[colName][dataset.data[colName] == i] = (dataset.result[0][0])
+
+        if find_method == "ZSCORE2":
+            if len(dataset.outliers) == 1:
+                for i in dataset.outliers:
+                    dataset.data[colName][dataset.data[colName] == i] = (dataset.result[0][0])
+            if len(dataset.outliers) == 2:
+                for i in dataset.outliers:
+                    res = checkClosestOutlier(i, dataset.result)
+                    dataset.data[colName][dataset.data[colName] == i] = (res)
+
+
+
 
     if substitute_method == "MEAN":
         for i in dataset.outliers:
@@ -451,6 +663,9 @@ def checkOutliersAfterReplacement(dataset,colName):
 
     if find_method == "ZSCORE":
         outliers = outZSCORE(dataset,colName)
+
+    if find_method == "ZSCORE2":
+        outliers = outZSCORE_global(dataset,colName)
 
     if len(outliers) == 0:
         print(colName, ": KNN terminato, outliers sostituiti\n\n")
