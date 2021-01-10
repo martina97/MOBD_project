@@ -22,8 +22,19 @@ from imblearn.over_sampling import SMOTE
 from xgboost import XGBClassifier
 
 def cross4(train_x, test_x, train_y, test_y,method):
-    clf = QuadraticDiscriminantAnalysis(store_covariance=True)
+    classifier = QuadraticDiscriminantAnalysis()
+    parameters= {
+        'reg_param': (0.0000000001, 0.0001, 0.001, 0.01, 0.1),
+        'store_covariance': (True, False),
+        'tol': (0.0000000001, 0.001, 0.01, 0.1),
+    }
+    clf = model_selection.GridSearchCV(classifier, parameters,  scoring='f1_macro', cv=5, refit=True, n_jobs=-1)
+
     clf.fit(train_x.data, train_y.data.ravel())
+    best_parameters = clf.best_params_
+    print("\n\nbest_parameters MLP : ", best_parameters)
+    best_result = clf.best_score_
+    print("best_result MLP: ", best_result)
     evaluate_classifier(clf, test_x, test_y)
 
 def cross3(train_x, test_x, train_y, test_y,method):

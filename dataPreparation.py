@@ -5,11 +5,13 @@ import sklearn.preprocessing as prep
 import numpy as np
 import pandas as pd
 from imblearn.over_sampling import SMOTE, RandomOverSampler
-from imblearn.under_sampling import RandomUnderSampler
+from imblearn.under_sampling import RandomUnderSampler, NearMiss, CondensedNearestNeighbour, TomekLinks, \
+    ClusterCentroids, EditedNearestNeighbours, OneSidedSelection, NeighbourhoodCleaningRule
 from matplotlib import pyplot as plt
 from scipy.stats import stats
 from sklearn.decomposition import PCA
 from sklearn.feature_selection import VarianceThreshold, RFE
+from sklearn.impute import KNNImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsRegressor
 
@@ -28,8 +30,8 @@ find_method = "ZSCORE2"
 substitute_method = "KNN"
 #substitute_method = "MEAN"
 
-#scaleType = "STANDARD"
-scaleType = "MINMAX"
+scaleType = "STANDARD"
+#scaleType = "MINMAX"
 
 class Dataset:
   def __init__(self, name, data):
@@ -75,6 +77,15 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
 
     # calcoliamo il numero di valori mancanti su train e test (n/a)
     naMean(train_x,test_x)
+    '''
+    imputer = KNNImputer(n_neighbors=5, weights='uniform', metric='nan_euclidean')
+    #imputer.fit(train_x.data)
+    #imputer.fit(test_x.data)
+    getNaCount(train_x)
+    train_x.data = pd.DataFrame(imputer.fit_transform(train_x.data))
+    getNaCount(train_x)
+    test_x.data = pd.DataFrame(imputer.fit_transform(test_x.data))
+    '''
 
     #dbScan(train_x)
     #zScore(train_x)
@@ -101,11 +112,23 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
     pca(train_x, test_x)
 
     #SMOTE
-
+    '''
     # Under-sampling:
     ros = RandomUnderSampler(random_state=42)
+    #ros = RandomOverSampler(random_state=42)
+
     (train_x.data, train_y.data) = ros.fit_sample(train_x.data, train_y.data)
     (test_x.data, test_y.data) = ros.fit_sample(test_x.data, test_y.data)
+    '''
+
+    # define the undersampling method
+    #undersample = TomekLinks()
+    undersample =EditedNearestNeighbours(n_neighbors=2)         #MIGLIORE!!!!!!!!!
+    #undersample = NeighbourhoodCleaningRule(n_neighbors=1, threshold_cleaning=0.5)
+    # transform the dataset
+    train_x.data, train_y.data = undersample.fit_resample(train_x.data, train_y.data)
+    test_x.data, test_y.data = undersample.fit_resample(test_x.data, test_y.data)
+
 
     '''
     oversample = SMOTE()
@@ -668,6 +691,8 @@ def substituteOutliers(dataset, colName):
 
     #checkOutliersAfterKNN(dataset,colName)
 
+
+
 def checkClosestOutlier(outlier,resultList):
 
     '''
@@ -810,7 +835,7 @@ def getNaCount(dataset):
     boolean_mask = dataset.data.isna()
     # contiamo il numero di TRUE per ogni attributo sul dataset
     count = boolean_mask.sum(axis=0)
-    # print("count NaN: ",count)
+    print("count NaN: ",count)
     dataset.naCount=count
 
 def main():
@@ -829,6 +854,7 @@ def main():
 
     preProcessing(train_x, test_x, train_y, test_y, x, y)
     print(find_method, "---", substitute_method, "---", scaleType)
+
 
 
     crossValidation.cross4(train_x, test_x, train_y, test_y, find_method)
