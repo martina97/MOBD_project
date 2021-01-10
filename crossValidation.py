@@ -2,10 +2,84 @@ import numpy as np
 import sklearn.model_selection as model_selection
 import sklearn.metrics as metrics
 import sklearn.svm as svm
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.gaussian_process import GaussianProcessClassifier
+from sklearn.gaussian_process.kernels import RBF
+from sklearn.linear_model import LogisticRegression, SGDClassifier, Perceptron
+from sklearn.metrics import f1_score, classification_report
+from sklearn.multiclass import OneVsRestClassifier
+from sklearn.naive_bayes import MultinomialNB, GaussianNB
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
+from sklearn.pipeline import make_pipeline
+from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
-from sklearn.model_selection import cross_val_score
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier
+from sklearn.model_selection import cross_val_score, RepeatedStratifiedKFold
+from imblearn.pipeline import Pipeline
+from imblearn.over_sampling import SMOTE
+from xgboost import XGBClassifier
+
+def cross4(train_x, test_x, train_y, test_y,method):
+    clf = QuadraticDiscriminantAnalysis(store_covariance=True)
+    clf.fit(train_x.data, train_y.data.ravel())
+    evaluate_classifier(clf, test_x, test_y)
+
+def cross3(train_x, test_x, train_y, test_y,method):
+    #clf = QuadraticDiscriminantAnalysis(store_covariance=True)
+    #clf = GaussianNB()
+    classifier = KNeighborsClassifier(n_neighbors=3)
+    #kernel = 1.0 * RBF(1.0)
+    #clf = GaussianProcessClassifier(kernel=kernel,random_state=0)
+
+    parameter_space = {
+        'weights' : ['uniform', 'distance'],
+        'algorithm' : ['auto', 'ball_tree', 'kd_tree', 'brute']
+
+    }
+    clf = model_selection.GridSearchCV(classifier, parameter_space, scoring='f1_macro', cv=5, refit=True, n_jobs=-1)
+
+    clf.fit(train_x.data, train_y.data.ravel())
+    best_parameters = clf.best_params_
+    print("\n\nbest_parameters MLP : ", best_parameters)
+    best_result = clf.best_score_
+    print("best_result MLP: ", best_result)
+    #best_result = clf.best_score_
+    #print("best_result QuadraticDiscriminantAnalysis: ", best_result)
+    evaluate_classifier(clf, test_x, test_y)
+
+def cross2(train_x, test_x, train_y, test_y,method):
+
+    clfs = {
+        'gnb': GaussianNB(),
+        'svm_linear': SVC(kernel='linear'),
+        'svm_rbf': SVC(kernel='rbf'),
+        'svm_sigmoid': SVC(kernel='sigmoid'),
+        'svm_poly': SVC(kernel='poly'),
+        'mlp1': MLPClassifier(),
+        'mlp2': MLPClassifier(hidden_layer_sizes=[20,20,20]),
+        'ada': AdaBoostClassifier(),
+        'dtc': DecisionTreeClassifier(),
+        'rfc': RandomForestClassifier(),
+        'gbc': GradientBoostingClassifier(),
+        'lr': LogisticRegression()
+    }
+
+    f1_scores = dict()
+    for clf_name in clfs:
+        #print(clf_name)
+        clf = clfs[clf_name]
+        clf.fit(train_x.data, train_y.data.ravel())
+        pred_y = clf.predict(test_x.data)
+        f1_scores[clf_name] = f1_score(test_y.data, pred_y,  average='macro')
+
+    print('Classifier\t\tF1')
+    for name, score in f1_scores.items():
+        print('{:<15} {:<15}'.format(name, score))
+
+
+
 
 
 
@@ -162,7 +236,8 @@ print()
 
 def mlp(train_x, train_y, n_folds, metric):
 
-    classifier = MLPClassifier(max_iter=200)
+    max_iter = 500
+    classifier = MLPClassifier(max_iter = 500)
     #classifier = MLPClassifier()
 
     alpha1 = 1e-4
@@ -232,10 +307,11 @@ def mlp(train_x, train_y, n_folds, metric):
     parameter_space3 = {
         'hidden_layer_sizes': [(50, 50, 50), (50, 100, 50), (100,150,100),(200,250,200)],
         #'hidden_layer_sizes': [ (50, 100, 50), (100, 150, 100), (200, 250, 200)],
-
+        'activation': ['relu'],
         'alpha': [0.5, 1, 1.5],
         'learning_rate_init' : [0.02, 0.01, 0.001],
-        'solver': ['sgd']
+        'solver': ['sgd'],
+        'learning_rate': ['invscaling']
         #'epsilon': [1e-08],
         #'tol': [1e-05],
         #'activation': ['logistic', 'relu', 'tanh', 'identity'],
@@ -245,12 +321,25 @@ def mlp(train_x, train_y, n_folds, metric):
         #'epsilon': [1e-3, 1e-7, 1e-8, 1e-9]
 
     }
+    parameter_space4 = {
+        'hidden_layer_sizes': [(20,20,20), (50, 100, 50), (200, 150, 200)],
+        'alpha': [0.5, 1, 1.2],
+        # 'epsilon': [1e-08],
+        # 'tol': [1e-05],
+         'activation': ['relu'],
+        'learning_rate': ['adaptive']
 
-    print("parameter_space3 : ", parameter_space3)
+        # 'tol': [1e-2, 1e-3, 1e-4, 1e-5, 1e-6],
+        # 'epsilon': [1e-3, 1e-7, 1e-8, 1e-9]
 
-    clf = model_selection.GridSearchCV(classifier, parameter_space3, scoring=metric, cv=n_folds, refit=True, n_jobs=-1)
+    }
+
+    print("parameter_space4 : ", parameter_space4)
+
+    clf = model_selection.GridSearchCV(classifier, parameter_space4, scoring=metric, cv=n_folds, refit=True, n_jobs=-1)
 
     print("MLP")
+    print("max_iter = ", max_iter)
     clf.fit(train_x.data, train_y.data.ravel())
     best_parameters = clf.best_params_
     print("\n\nbest_parameters MLP : ", best_parameters)
@@ -273,7 +362,8 @@ def evaluate_classifier(classifier, test_x, test_y):
     acc_score = metrics.accuracy_score(test_y.data, pred_y)
     print('F1: ', f1_score)
     print('Accuracy: ', acc_score)
-
+    report=classification_report( test_y.data, pred_y)
+    print(report)
 
 
 

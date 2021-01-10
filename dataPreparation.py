@@ -1,16 +1,22 @@
+from collections import Counter
 
 import sklearn
 import sklearn.preprocessing as prep
 import numpy as np
 import pandas as pd
+from imblearn.over_sampling import SMOTE, RandomOverSampler
+from imblearn.under_sampling import RandomUnderSampler
 from matplotlib import pyplot as plt
 from scipy.stats import stats
 from sklearn.decomposition import PCA
+from sklearn.feature_selection import VarianceThreshold, RFE
+from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsRegressor
 
 import crossValidation
 from sklearn.cluster import DBSCAN
 from matplotlib import cm
+import winsound
 
 #outliers:
 
@@ -38,7 +44,7 @@ class Dataset:
 
 def preProcessing(train_x, test_x, train_y, test_y, x, y):
 
-    train_x.data, test_x.data, train_y.data, test_y.data = sklearn.model_selection.train_test_split(x, y, test_size=0.2, random_state=0)
+    train_x.data, test_x.data, train_y.data, test_y.data = sklearn.model_selection.train_test_split(x, y, test_size=0.2, random_state=42)
     print('Train:', train_x.data.shape, train_y.data.shape)
     print('Test:', test_x.data.shape, test_y.data.shape)
 
@@ -93,6 +99,39 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
 
     #applichiamo PCA
     pca(train_x, test_x)
+
+    #SMOTE
+
+    # Under-sampling:
+    ros = RandomUnderSampler(random_state=42)
+    (train_x.data, train_y.data) = ros.fit_sample(train_x.data, train_y.data)
+    (test_x.data, test_y.data) = ros.fit_sample(test_x.data, test_y.data)
+
+    '''
+    oversample = SMOTE()
+    train_x.data, train_y.data = oversample.fit_resample(train_x.data, train_y.data)
+    counter = Counter(train_y.data)
+    for k,v in counter.items():
+        per = v / len(y) * 100
+        print('Class=%d, n=%d (%.3f%%)' % (k, v, per))
+    '''
+
+    '''
+    #Under-sampling:
+    ros = RandomUnderSampler(random_state=0)
+    (train_x.data, train_y.data) = ros.fit_sample(train_x.data, train_y.data)
+    
+    
+    #Over-sampling:
+    ros = RandomOverSampler(random_state=0)
+    (train_x.data, train_y.data) = ros.fit_sample(train_x.data, train_y.data)
+    (test_x.data, test_y.data) = ros.fit_sample(test_x.data, test_y.data)
+    counter = Counter(test_y.data)
+    for k, v in counter.items():
+        per = v / len(y) * 100
+        print('Class=%d, n=%d (%.3f%%)' % (k, v, per))
+
+    '''
 
 def zScore(dataset):
     z = np.abs(stats.zscore(dataset.data))
@@ -792,9 +831,12 @@ def main():
     print(find_method, "---", substitute_method, "---", scaleType)
 
 
-    crossValidation.cross(train_x, test_x, train_y, test_y, find_method)
+    crossValidation.cross4(train_x, test_x, train_y, test_y, find_method)
 
-
+    #suono quando finisce
+    duration = 1000  # milliseconds
+    freq = 440  # Hz
+    winsound.Beep(freq, duration)
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
