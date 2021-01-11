@@ -9,11 +9,14 @@ from imblearn.under_sampling import RandomUnderSampler, NearMiss, CondensedNeare
     ClusterCentroids, EditedNearestNeighbours, OneSidedSelection, NeighbourhoodCleaningRule
 from matplotlib import pyplot as plt
 from scipy.stats import stats
-from sklearn.decomposition import PCA
+from sklearn.decomposition import PCA, TruncatedSVD
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.feature_selection import VarianceThreshold, RFE
 from sklearn.impute import KNNImputer
 from sklearn.linear_model import LogisticRegression
+from sklearn.manifold import Isomap, LocallyLinearEmbedding
 from sklearn.neighbors import KNeighborsRegressor
+from sklearn.preprocessing import MaxAbsScaler, RobustScaler, PowerTransformer, QuantileTransformer, Normalizer
 
 import crossValidation
 from sklearn.cluster import DBSCAN
@@ -32,6 +35,8 @@ substitute_method = "KNN"
 
 scaleType = "STANDARD"
 #scaleType = "MINMAX"
+#scaleType = "MAX_ABS"
+#scaleType = "ROBUST"
 
 class Dataset:
   def __init__(self, name, data):
@@ -187,14 +192,22 @@ def pca(train_x, test_x):
         test_x.data = pca.transform(test_x.data)
 
 
+
+
+
 def scale(train_x, test_x, train_y, test_y):
 
         matrix(train_x, test_x, train_y, test_y)
 
         if scaleType=="STANDARD":
             standardScaler(train_x, test_x)
-        else:
+        if scaleType == "MINMAX":
             minMaxScaler(train_x, test_x)
+        if scaleType == "MAX_ABS":
+            maxAbsScaler(train_x, test_x)
+        if scaleType == "ROBUST":
+            robustScaler(train_x, test_x)
+
 
 
 def matrix(train_x, test_x, train_y, test_y):
@@ -238,6 +251,22 @@ def minMaxScaler(train_x, test_x):
     train_x.data = scaler_x.transform(train_x.data)
     if test_x is not None:
         test_x.data = scaler_x.transform(test_x.data)
+
+def maxAbsScaler(train_x, test_x):
+    scaler = MaxAbsScaler()
+    scaler.fit(train_x.data)
+    train_x.data = scaler.transform(train_x.data)
+
+    if test_x is not None:
+        test_x.data = scaler.transform(test_x.data)
+
+def robustScaler(train_x, test_x):
+    scaler = RobustScaler(quantile_range=(25, 75))
+    scaler.fit(train_x.data)
+    train_x.data = scaler.transform(train_x.data)
+
+    if test_x is not None:
+        test_x.data = scaler.transform(test_x.data)
 
 
 

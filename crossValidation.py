@@ -74,7 +74,8 @@ def cross2(train_x, test_x, train_y, test_y,method):
         'dtc': DecisionTreeClassifier(),
         'rfc': RandomForestClassifier(),
         'gbc': GradientBoostingClassifier(),
-        'lr': LogisticRegression()
+        'lr': LogisticRegression(),
+        'qda': QuadraticDiscriminantAnalysis(reg_param= 0.001, store_covariance= True, tol= 1e-10)
     }
 
     f1_scores = dict()
