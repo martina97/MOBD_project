@@ -2,6 +2,8 @@ import numpy as np
 import sklearn.model_selection as model_selection
 import sklearn.metrics as metrics
 import sklearn.svm as svm
+from imblearn.under_sampling import CondensedNearestNeighbour, EditedNearestNeighbours, RepeatedEditedNearestNeighbours, \
+    AllKNN, InstanceHardnessThreshold, NearMiss
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.gaussian_process import GaussianProcessClassifier
@@ -62,6 +64,7 @@ def cross3(train_x, test_x, train_y, test_y,method):
 
 def cross2(train_x, test_x, train_y, test_y,method):
 
+
     clfs = {
         'gnb': GaussianNB(),
         'svm_linear': SVC(kernel='linear'),
@@ -91,7 +94,51 @@ def cross2(train_x, test_x, train_y, test_y,method):
         print('{:<15} {:<15}'.format(name, score))
 
 
+def cross_underSampl(train_x, test_x, train_y, test_y):
 
+
+    classifier = QuadraticDiscriminantAnalysis()
+    parameters = {
+        'reg_param': (0.0000000001, 0.0001, 0.001, 0.01, 0.1),
+        'store_covariance': (True, False),
+        'tol': (0.0000000001, 0.001, 0.01, 0.1),
+    }
+
+
+    underSamplings = {
+        #'CondensedNearestNeighbour' : CondensedNearestNeighbour(random_state=42),
+        #'CondensedNearestNeighbour2': CondensedNearestNeighbour(),
+        'EditedNearestNeighbours': EditedNearestNeighbours(n_neighbors=7, kind_sel = 'mode', n_jobs = -1),
+        'EditedNearestNeighbours2': EditedNearestNeighbours(n_neighbors=7, kind_sel = 'mode', n_jobs = -1),
+         'RepeatedEditedNearestNeighbours': RepeatedEditedNearestNeighbours(),
+        #'AllKNN': AllKNN(allow_minority=True, n_neighbors=5, kind_sel='mode', n_jobs=-1),
+
+        #'RepeatedEditedNearestNeighbours2': RepeatedEditedNearestNeighbours(n_neighbors=6, max_iter = 900000, kind_sel = 'mode', n_jobs = -1)
+
+        #'AllKNN': AllKNN(allow_minority=True, n_neighbors=10, kind_sel='mode', n_jobs=-1),
+        #'AllKNN2': AllKNN(allow_minority=True, n_neighbors=40, kind_sel='mode', n_jobs=-1),
+        #'NearMiss': NearMiss(n_neighbors=10, version=1, sampling_strategy='majority'),
+        #'NearMiss2': NearMiss(n_neighbors=10, version=1, sampling_strategy='not minority'),
+        #'NearMiss3': NearMiss(n_neighbors=10, version=1, sampling_strategy='not majority'),
+        #'NearMiss4': NearMiss(n_neighbors=10, version=1, sampling_strategy='all'),
+
+    }
+
+    f1_scores = dict()
+    for underSampl_names in underSamplings:
+        # print(clf_name)
+        undersample = underSamplings[underSampl_names]
+        #train_xPROVA, train_yPROVA = undersample.fit_resample(train_x.data, train_y.data)
+        train_x.data, train_y.data = undersample.fit_resample(train_x.data, train_y.data)
+        clf = model_selection.GridSearchCV(classifier, parameters, scoring='f1_macro', cv=5, refit=True, n_jobs=-1)
+        #clf.fit(train_xPROVA, train_yPROVA.ravel())
+        clf.fit(train_x.data, train_y.data.ravel())
+        pred_y = clf.predict(test_x.data)
+        f1_scores[underSampl_names] = f1_score(test_y.data, pred_y, average='macro')
+
+    print('Classifier\t\tF1')
+    for name, score in f1_scores.items():
+        print('{:<30} {:<15}'.format(name, score))
 
 
 

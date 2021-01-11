@@ -154,18 +154,25 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
     #undersample = NeighbourhoodCleaningRule(n_neighbors=2,threshold_cleaning=0)
 
     #migliori
-    #undersample = RepeatedEditedNearestNeighbours(n_neighbors=10, max_iter = 900000, kind_sel = 'mode', n_jobs = -1)
+    #undersample = RepeatedEditedNearestNeighbours(n_neighbors=6, max_iter = 900000, kind_sel = 'mode', n_jobs = -1)
     #undersample = NeighbourhoodCleaningRule(n_neighbors=10,threshold_cleaning=0, n_jobs = -1,  kind_sel = 'mode')
     #undersample =EditedNearestNeighbours(n_neighbors=10, kind_sel = 'mode', n_jobs = -1)
 
-    undersample =AllKNN(allow_minority=True, n_neighbors=10, kind_sel = 'mode', n_jobs = -1) #migliore!!!!
+    #undersample =AllKNN(allow_minority=True, n_neighbors=10, kind_sel = 'mode', n_jobs = -1) #migliore!!!!
     #undersample =InstanceHardnessThreshold(random_state=42)
 
 
     # transform the dataset
-    train_x.data, train_y.data = undersample.fit_resample(train_x.data, train_y.data)
+    #train_x.data, train_y.data = undersample.fit_resample(train_x.data, train_y.data)
     #test_x.data, test_y.data = undersample.fit_resample(test_x.data, test_y.data)
 
+    #undersample =AllKNN(allow_minority=True, n_neighbors=10, kind_sel = 'mode', n_jobs = -1) #migliore!!!!
+    #undersample =InstanceHardnessThreshold(random_state=42)
+
+
+    # transform the dataset
+    #train_x.data, train_y.data = undersample.fit_resample(train_x.data, train_y.data)
+    #test_x.data, test_y.data = undersample.fit_resample(test_x.data, test_y.data)
 
     '''
     oversample = SMOTE()
@@ -1185,11 +1192,13 @@ def main():
 
 
 
-    crossValidation.cross4(train_x, test_x, train_y, test_y, find_method)
+    #crossValidation.cross2(train_x, test_x, train_y, test_y, find_method)
+    crossValidation.cross_underSampl(train_x, test_x, train_y, test_y)
+
 
     print("dict === ", train_x.outliersDict)
     #suono quando finisce
-    duration = 1000  # milliseconds
+    duration = 100  # milliseconds
     freq = 440  # Hz
     winsound.Beep(freq, duration)
 
