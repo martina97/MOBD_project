@@ -18,7 +18,8 @@ from sklearn.impute import KNNImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.manifold import Isomap, LocallyLinearEmbedding
 from sklearn.neighbors import KNeighborsRegressor
-from sklearn.preprocessing import MaxAbsScaler, RobustScaler, PowerTransformer, QuantileTransformer, Normalizer
+from sklearn.preprocessing import MaxAbsScaler, RobustScaler, PowerTransformer, QuantileTransformer, Normalizer, \
+    LabelEncoder
 
 import crossValidation
 from sklearn.cluster import DBSCAN
@@ -85,9 +86,10 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
     # calcoliamo il numero di valori mancanti su train e test (n/a)
 
     #naMean(train_x,test_x)
+    qt = QuantileTransformer(n_quantiles=1, random_state=42, output_distribution='normal', ignore_implicit_zeros=True)
+    qt.fit_transform(train_x.data)
 
-
-    imputer = KNNImputer(n_neighbors=1)
+    imputer = KNNImputer(n_neighbors=3)
     imputed = imputer.fit_transform(train_x.data)
     imputed_test = imputer.transform(test_x.data)
     train_x.data = pd.DataFrame(imputed, columns=train_x.data.columns)
@@ -158,7 +160,28 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
     #undersample = NeighbourhoodCleaningRule(n_neighbors=10,threshold_cleaning=0, n_jobs = -1,  kind_sel = 'mode')
     #undersample =EditedNearestNeighbours(n_neighbors=10, kind_sel = 'mode', n_jobs = -1)
 
-    #undersample =AllKNN(allow_minority=True, n_neighbors=10, kind_sel = 'mode', n_jobs = -1) #migliore!!!!
+    undersample =AllKNN(allow_minority=True, n_neighbors=7, kind_sel = 'mode', n_jobs = -1) #migliore!!!!
+    undersample =InstanceHardnessThreshold(random_state=42)
+
+
+    # transform the dataset
+    #train_x.data, train_y.data = undersample.fit_resample(train_x.data, train_y.data)
+    #test_x.data, test_y.data = undersample.fit_resample(test_x.data, test_y.data)
+    ''' 
+    train_y.data = LabelEncoder().fit_transform(train_y.data)
+    counter = Counter(train_y.data)
+    for k, v in counter.items():
+        per = v / len(train_y.data) * 100
+        print('Class=%d, n=%d (%.3f%%)' % (k, v, per))
+
+    oversample = SMOTE()
+    train_x.data, train_y.data = oversample.fit_resample(train_x.data, train_y.data)
+
+    undersample = RepeatedEditedNearestNeighbours(n_neighbors=10, max_iter = 900000, kind_sel = 'mode', n_jobs = -1)
+
+    #undersample =AllKNN(allow_minority=True, n_neighbors=7, kind_sel = 'mode', n_jobs = -1) #migliore!!!!
+    train_x.data, train_y.data = undersample.fit_resample(train_x.data, train_y.data)
+
     #undersample =InstanceHardnessThreshold(random_state=42)
 
 
@@ -166,14 +189,11 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
     #train_x.data, train_y.data = undersample.fit_resample(train_x.data, train_y.data)
     #test_x.data, test_y.data = undersample.fit_resample(test_x.data, test_y.data)
 
-    #undersample =AllKNN(allow_minority=True, n_neighbors=10, kind_sel = 'mode', n_jobs = -1) #migliore!!!!
-    #undersample =InstanceHardnessThreshold(random_state=42)
-
-
-    # transform the dataset
-    #train_x.data, train_y.data = undersample.fit_resample(train_x.data, train_y.data)
-    #test_x.data, test_y.data = undersample.fit_resample(test_x.data, test_y.data)
-
+    counter = Counter(train_y.data)
+    for k, v in counter.items():
+        per = v / len(train_y.data) * 100
+        print('Class=%d, n=%d (%.3f%%)' % (k, v, per))
+    '''
     '''
     oversample = SMOTE()
     train_x.data, train_y.data = oversample.fit_resample(train_x.data, train_y.data)

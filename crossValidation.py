@@ -13,14 +13,16 @@ from sklearn.metrics import f1_score, classification_report
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.naive_bayes import MultinomialNB, GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.neural_network import MLPClassifier
+from sklearn.neural_network import MLPClassifier, BernoulliRBM
 from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import QuantileTransformer
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier
 from sklearn.model_selection import cross_val_score, RepeatedStratifiedKFold
 from imblearn.pipeline import Pipeline
-from imblearn.over_sampling import SMOTE
+from imblearn.over_sampling import SMOTE, ADASYN, BorderlineSMOTE
+from sklearn.utils import compute_class_weight
 from xgboost import XGBClassifier
 
 def cross4(train_x, test_x, train_y, test_y,method):
@@ -72,7 +74,7 @@ def cross2(train_x, test_x, train_y, test_y,method):
         'svm_sigmoid': SVC(kernel='sigmoid'),
         'svm_poly': SVC(kernel='poly'),
         'mlp1': MLPClassifier(),
-        'mlp2': MLPClassifier(hidden_layer_sizes=[20,20,20]),
+        'mlp2': MLPClassifier(hidden_layer_sizes=[30,30,30]),
         'ada': AdaBoostClassifier(),
         'dtc': DecisionTreeClassifier(),
         'rfc': RandomForestClassifier(),
@@ -88,10 +90,14 @@ def cross2(train_x, test_x, train_y, test_y,method):
         clf.fit(train_x.data, train_y.data.ravel())
         pred_y = clf.predict(test_x.data)
         f1_scores[clf_name] = f1_score(test_y.data, pred_y,  average='macro')
+        print('{:<15} {:<15}'.format(clf_name, f1_scores[clf_name]))
+        report = classification_report(test_y.data, pred_y)
+        print(report)
 
     print('Classifier\t\tF1')
     for name, score in f1_scores.items():
         print('{:<15} {:<15}'.format(name, score))
+
 
 
 def cross_underSampl(train_x, test_x, train_y, test_y):
@@ -111,11 +117,12 @@ def cross_underSampl(train_x, test_x, train_y, test_y):
         #'EditedNearestNeighbours': EditedNearestNeighbours(n_neighbors=7, kind_sel = 'mode', n_jobs = -1),
         #'EditedNearestNeighbours2': EditedNearestNeighbours(n_neighbors=7, kind_sel = 'mode', n_jobs = -1),
 
-        'RepeatedEditedNearestNeighbours': RepeatedEditedNearestNeighbours(n_neighbors=7, max_iter = 900000, kind_sel = 'mode', n_jobs = -1),
-        'RepeatedEditedNearestNeighbours2': RepeatedEditedNearestNeighbours(n_neighbors=6, max_iter = 900000, kind_sel = 'mode', n_jobs = -1),
+        #'RepeatedEditedNearestNeighbours': RepeatedEditedNearestNeighbours(n_neighbors=7, max_iter = 900000, kind_sel = 'mode', n_jobs = -1),
+        #'RepeatedEditedNearestNeighbours2': RepeatedEditedNearestNeighbours(n_neighbors=7,  kind_sel = 'mode', n_jobs = -1),
 
-        'AllKNN': AllKNN(allow_minority=True, n_neighbors=6, kind_sel='mode', n_jobs=-1),
-        'AllKNN2': AllKNN(allow_minority=True, n_neighbors=2, kind_sel='mode', n_jobs=-1),
+        'AllKNN': AllKNN(allow_minority=True, n_neighbors=7, kind_sel='mode', n_jobs=-1),
+        #'ada': BorderlineSMOTE(),
+        #'AllKNN2': AllKNN(allow_minority=True, n_neighbors=10, kind_sel='mode', n_jobs=-1),
 
         #'RepeatedEditedNearestNeighbours2': RepeatedEditedNearestNeighbours(n_neighbors=6, max_iter = 900000, kind_sel = 'mode', n_jobs = -1)
 
@@ -389,8 +396,13 @@ def mlp(train_x, train_y, n_folds, metric):
         'alpha': [0.5, 1, 1.2],
         # 'epsilon': [1e-08],
         # 'tol': [1e-05],
+        'solver': ['sgd', 'adam'],
          'activation': ['relu'],
-        'learning_rate': ['adaptive']
+        'learning_rate': ['adaptive','invscaling'],
+        'power_t' : 3,
+        'warm_start' : True,
+        'shuffle': False,
+        'random_state' : 42
 
         # 'tol': [1e-2, 1e-3, 1e-4, 1e-5, 1e-6],
         # 'epsilon': [1e-3, 1e-7, 1e-8, 1e-9]
