@@ -108,10 +108,14 @@ def cross_underSampl(train_x, test_x, train_y, test_y):
     underSamplings = {
         #'CondensedNearestNeighbour' : CondensedNearestNeighbour(random_state=42),
         #'CondensedNearestNeighbour2': CondensedNearestNeighbour(),
-        'EditedNearestNeighbours': EditedNearestNeighbours(n_neighbors=7, kind_sel = 'mode', n_jobs = -1),
-        'EditedNearestNeighbours2': EditedNearestNeighbours(n_neighbors=7, kind_sel = 'mode', n_jobs = -1),
-         'RepeatedEditedNearestNeighbours': RepeatedEditedNearestNeighbours(),
-        #'AllKNN': AllKNN(allow_minority=True, n_neighbors=5, kind_sel='mode', n_jobs=-1),
+        #'EditedNearestNeighbours': EditedNearestNeighbours(n_neighbors=7, kind_sel = 'mode', n_jobs = -1),
+        #'EditedNearestNeighbours2': EditedNearestNeighbours(n_neighbors=7, kind_sel = 'mode', n_jobs = -1),
+
+        'RepeatedEditedNearestNeighbours': RepeatedEditedNearestNeighbours(n_neighbors=7, max_iter = 900000, kind_sel = 'mode', n_jobs = -1),
+        'RepeatedEditedNearestNeighbours2': RepeatedEditedNearestNeighbours(n_neighbors=6, max_iter = 900000, kind_sel = 'mode', n_jobs = -1),
+
+        'AllKNN': AllKNN(allow_minority=True, n_neighbors=6, kind_sel='mode', n_jobs=-1),
+        'AllKNN2': AllKNN(allow_minority=True, n_neighbors=2, kind_sel='mode', n_jobs=-1),
 
         #'RepeatedEditedNearestNeighbours2': RepeatedEditedNearestNeighbours(n_neighbors=6, max_iter = 900000, kind_sel = 'mode', n_jobs = -1)
 
