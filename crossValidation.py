@@ -1,10 +1,14 @@
+from collections import Counter
+
 import numpy as np
 import sklearn.model_selection as model_selection
 import sklearn.metrics as metrics
 import sklearn.svm as svm
+from imblearn.combine import SMOTEENN, SMOTETomek
+from imblearn.ensemble import BalancedBaggingClassifier
 from imblearn.under_sampling import CondensedNearestNeighbour, EditedNearestNeighbours, RepeatedEditedNearestNeighbours, \
-    AllKNN, InstanceHardnessThreshold, NearMiss
-from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+    AllKNN, InstanceHardnessThreshold, NearMiss, RandomUnderSampler
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis, LinearDiscriminantAnalysis
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.gaussian_process.kernels import RBF
@@ -15,20 +19,58 @@ from sklearn.naive_bayes import MultinomialNB, GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier, BernoulliRBM
 from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import QuantileTransformer
+from sklearn.preprocessing import QuantileTransformer, LabelEncoder
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier
 from sklearn.model_selection import cross_val_score, RepeatedStratifiedKFold
 from imblearn.pipeline import Pipeline
-from imblearn.over_sampling import SMOTE, ADASYN, BorderlineSMOTE
+from imblearn.over_sampling import SMOTE, ADASYN, BorderlineSMOTE, RandomOverSampler, KMeansSMOTE, SMOTENC, SVMSMOTE
 from sklearn.utils import compute_class_weight
 from xgboost import XGBClassifier
 
 def cross4(train_x, test_x, train_y, test_y,method):
+
+    if method == "IQR":
+        np.savetxt("train_x.data_FINALE_iqr.csv", train_x.data, delimiter=",")
+        np.savetxt("train_y.data_FINALE_iqr.csv", train_y.data, delimiter=",")
+    else:
+
+        np.savetxt("train_x.data_FINALE_z.csv", train_x.data, delimiter=",")
+        np.savetxt("train_y.data_FINALE_z.csv", train_y.data, delimiter=",")
+
     classifier = QuadraticDiscriminantAnalysis()
+    array = np.array([0.3,0.1,0.2,0.5])
     parameters= {
+
         'reg_param': (0.0000000001, 0.0001, 0.001, 0.01, 0.1),
+        'store_covariance': [True, False],
+        'tol': (0.0000000001, 0.0001, 0.001, 0.01, 0.1),
+
+    }
+    clf = model_selection.GridSearchCV(classifier, parameters,  scoring='f1_macro', cv=5, refit=True, n_jobs=-1)
+
+    clf.fit(train_x.data, train_y.data.ravel())
+    best_parameters = clf.best_params_
+    print("\n\nbest_parameters MLP : ", best_parameters)
+    best_result = clf.best_score_
+    print("best_result MLP: ", best_result)
+    print("provvaaaa", clf.get_params())
+    evaluate_classifier(clf, test_x, test_y)
+
+def cross5(train_x, test_x, train_y, test_y,method):
+
+    if method == "IQR":
+        np.savetxt("train_x.data_FINALE_iqr.csv", train_x.data, delimiter=",")
+        np.savetxt("train_y.data_FINALE_iqr.csv", train_y.data, delimiter=",")
+    else:
+
+        np.savetxt("train_x.data_FINALE_z.csv", train_x.data, delimiter=",")
+        np.savetxt("train_y.data_FINALE_z.csv", train_y.data, delimiter=",")
+
+    classifier = LinearDiscriminantAnalysis()
+    parameters= {
+        'solver':['svd', 'lsqr', 'eigen'],
         'store_covariance': (True, False),
         'tol': (0.0000000001, 0.001, 0.01, 0.1),
     }
@@ -38,7 +80,7 @@ def cross4(train_x, test_x, train_y, test_y,method):
     best_parameters = clf.best_params_
     print("\n\nbest_parameters MLP : ", best_parameters)
     best_result = clf.best_score_
-    print("best_result MLP: ", best_result)
+    #print("best_result MLP: ", best_result)
     evaluate_classifier(clf, test_x, test_y)
 
 def cross3(train_x, test_x, train_y, test_y,method):
@@ -68,19 +110,22 @@ def cross2(train_x, test_x, train_y, test_y,method):
 
 
     clfs = {
-        'gnb': GaussianNB(),
-        'svm_linear': SVC(kernel='linear'),
-        'svm_rbf': SVC(kernel='rbf'),
-        'svm_sigmoid': SVC(kernel='sigmoid'),
-        'svm_poly': SVC(kernel='poly'),
-        'mlp1': MLPClassifier(),
-        'mlp2': MLPClassifier(hidden_layer_sizes=[30,30,30]),
-        'ada': AdaBoostClassifier(),
-        'dtc': DecisionTreeClassifier(),
-        'rfc': RandomForestClassifier(),
-        'gbc': GradientBoostingClassifier(),
-        'lr': LogisticRegression(),
-        'qda': QuadraticDiscriminantAnalysis(reg_param= 0.001, store_covariance= True, tol= 1e-10)
+        #'gnb': GaussianNB(),
+        #'svm_linear': SVC(kernel='linear'),
+        #'svm_rbf': SVC(kernel='rbf'),
+        #'svm_sigmoid': SVC(kernel='sigmoid'),
+        #'svm_poly': SVC(kernel='poly'),
+        #'mlp1': MLPClassifier(),
+        #'mlp2': MLPClassifier(hidden_layer_sizes=[30,30,30]),
+        #'ada': AdaBoostClassifier(),
+        #'dtc': DecisionTreeClassifier(),
+        #'rfc': RandomForestClassifier(),
+        #'gbc': GradientBoostingClassifier(),
+        #'lr': LogisticRegression(),
+        'qda':QuadraticDiscriminantAnalysis(reg_param= 0.0001, store_covariance= True, tol= 1e-10,priors = np.array([0.1,0.6,0.1,0.2])),
+        #'qda': QuadraticDiscriminantAnalysis(reg_param=0.0001, store_covariance=True, tol=1e-10),
+
+        #'sme': BalancedBaggingClassifier(random_state=42)
     }
 
     f1_scores = dict()
@@ -93,6 +138,8 @@ def cross2(train_x, test_x, train_y, test_y,method):
         print('{:<15} {:<15}'.format(clf_name, f1_scores[clf_name]))
         report = classification_report(test_y.data, pred_y)
         print(report)
+        print(clf.classes_)
+        print("\n\n", clf.priors_)
 
     print('Classifier\t\tF1')
     for name, score in f1_scores.items():
@@ -109,7 +156,15 @@ def cross_underSampl(train_x, test_x, train_y, test_y):
         'store_covariance': (True, False),
         'tol': (0.0000000001, 0.001, 0.01, 0.1),
     }
+    train_y.data = LabelEncoder().fit_transform(train_y.data)
+    # summarize distribution
+    counter = Counter(train_y.data)
+    for k, v in counter.items():
+        per = v / len(train_y.data) * 100
+        print('Class=%d, n=%d (%.3f%%)' % (k, v, per))
 
+    strategy = {0: 1407, 1: 598, 2: 800, 3: 1000}
+    strategy2 = {0: 1407, 1: 300, 2: 600, 3: 1000}
 
     underSamplings = {
         #'CondensedNearestNeighbour' : CondensedNearestNeighbour(random_state=42),
@@ -120,7 +175,16 @@ def cross_underSampl(train_x, test_x, train_y, test_y):
         #'RepeatedEditedNearestNeighbours': RepeatedEditedNearestNeighbours(n_neighbors=7, max_iter = 900000, kind_sel = 'mode', n_jobs = -1),
         #'RepeatedEditedNearestNeighbours2': RepeatedEditedNearestNeighbours(n_neighbors=7,  kind_sel = 'mode', n_jobs = -1),
 
-        'AllKNN': AllKNN(allow_minority=True, n_neighbors=7, kind_sel='mode', n_jobs=-1),
+        #'AllKNN': AllKNN(allow_minority=True, n_neighbors=7, kind_sel='mode', n_jobs=-1),
+        #'ada': KMeansSMOTE(random_state=42, sampling_strategy=strategy),
+        #'ada': SVMSMOTE(random_state=42, sampling_strategy=strategy),
+        #'ada1': ADASYN(random_state=42, sampling_strategy='not minority'),
+        #'ada2': ADASYN(random_state=42, sampling_strategy='not majority'),
+        #'ada3': ADASYN(random_state=42, sampling_strategy='all'),
+        #'ros': RandomUnderSampler(sampling_strategy=strategy2)
+
+
+
         #'ada': BorderlineSMOTE(),
         #'AllKNN2': AllKNN(allow_minority=True, n_neighbors=10, kind_sel='mode', n_jobs=-1),
 
@@ -137,7 +201,7 @@ def cross_underSampl(train_x, test_x, train_y, test_y):
 
     f1_scores = dict()
     for underSampl_names in underSamplings:
-        # print(clf_name)
+        print("\n\n", underSampl_names)
         undersample = underSamplings[underSampl_names]
         #train_xPROVA, train_yPROVA = undersample.fit_resample(train_x.data, train_y.data)
         train_x.data, train_y.data = undersample.fit_resample(train_x.data, train_y.data)
@@ -146,10 +210,16 @@ def cross_underSampl(train_x, test_x, train_y, test_y):
         clf.fit(train_x.data, train_y.data.ravel())
         pred_y = clf.predict(test_x.data)
         f1_scores[underSampl_names] = f1_score(test_y.data, pred_y, average='macro')
+        counter = Counter(train_y.data)
+        for k, v in counter.items():
+            per = v / len(train_y.data) * 100
+            print('Class=%d, n=%d (%.3f%%)' % (k, v, per))
 
     print('Classifier\t\tF1')
     for name, score in f1_scores.items():
         print('{:<30} {:<15}'.format(name, score))
+        report = classification_report(test_y.data, pred_y)
+        print(report)
 
 
 

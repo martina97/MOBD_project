@@ -4,22 +4,30 @@ import sklearn
 import sklearn.preprocessing as prep
 import numpy as np
 import pandas as pd
+import seaborn as sns
+from imblearn.ensemble import BalancedBaggingClassifier
 from imblearn.over_sampling import SMOTE, RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler, NearMiss, CondensedNearestNeighbour, TomekLinks, \
     ClusterCentroids, EditedNearestNeighbours, OneSidedSelection, NeighbourhoodCleaningRule, \
     RepeatedEditedNearestNeighbours, AllKNN, InstanceHardnessThreshold
 from matplotlib import pyplot as plt
+from sklearn.experimental import enable_iterative_imputer
+
 from pyod.models.knn import KNN
 from scipy.stats import stats
+from sklearn.covariance import EllipticEnvelope, EmpiricalCovariance, MinCovDet
 from sklearn.decomposition import PCA, TruncatedSVD
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-from sklearn.feature_selection import VarianceThreshold, RFE, SelectKBest, mutual_info_classif, f_classif
-from sklearn.impute import KNNImputer
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
+from sklearn.ensemble import IsolationForest
+from sklearn.feature_selection import VarianceThreshold, RFE, SelectKBest, mutual_info_classif, f_classif, \
+    SelectFromModel
+from sklearn.impute import KNNImputer, SimpleImputer, IterativeImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.manifold import Isomap, LocallyLinearEmbedding
-from sklearn.neighbors import KNeighborsRegressor
+from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier, RadiusNeighborsRegressor, LocalOutlierFactor
 from sklearn.preprocessing import MaxAbsScaler, RobustScaler, PowerTransformer, QuantileTransformer, Normalizer, \
     LabelEncoder
+from sklearn.svm import OneClassSVM
 
 import crossValidation
 from sklearn.cluster import DBSCAN
@@ -33,11 +41,12 @@ find_method = "ZSCORE"
 #find_method = "ZSCORE2"
 #find_method = "DBSCAN"
 
+
 substitute_method = "KNN"
 #substitute_method = "MEAN"
 
-scaleType = "STANDARD"
-#scaleType = "MINMAX"
+#scaleType = "STANDARD"
+scaleType = "MINMAX"
 #scaleType = "MAX_ABS"
 #scaleType = "ROBUST"
 
@@ -86,14 +95,16 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
     # calcoliamo il numero di valori mancanti su train e test (n/a)
 
     #naMean(train_x,test_x)
-    qt = QuantileTransformer(n_quantiles=1, random_state=42, output_distribution='normal', ignore_implicit_zeros=True)
-    qt.fit_transform(train_x.data)
+
 
     imputer = KNNImputer(n_neighbors=3)
+    #imputer = IterativeImputer(random_state=42, imputation_order = 'roman')
+
     imputed = imputer.fit_transform(train_x.data)
     imputed_test = imputer.transform(test_x.data)
     train_x.data = pd.DataFrame(imputed, columns=train_x.data.columns)
     test_x.data = pd.DataFrame(imputed_test, columns=test_x.data.columns)
+
 
     '''
     imputer = KNNImputer(n_neighbors=5, weights='uniform', metric='nan_euclidean')
@@ -112,24 +123,36 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
     #outliers detection
     if find_method == "ZSCORE2":
         outlierDetection_zScoreGlobal(train_x, test_x)
-
+    if find_method == "DBSCAN":
+        #dbScan(train_x)
+        isoFor(train_x, test_x)
 
     else:
         outlierDetection(train_x, test_x)
+
 
     #dbScan(train_x, train_y)
     #dbScan(test_x, test_y)
 
 
 
+
     #normalizziamo i dati
     scale(train_x, test_x, train_y, test_y)
-
+    #plotScalers(train_x, test_x, scaleType)
     #dbScan(train_x)
+    np.savetxt("train_x.PAIRPLOT.csv", train_x.data, delimiter=",")
+    datasetPath = './train_x.PAIRPLOT.csv'
+    dataset = pd.read_csv(datasetPath)
+    #dataset = sns.load_dataset('train_x.PAIRPLOT.csv')
+
+    #sns.pairplot(dataset)
+    #plt.show()
 
     #applichiamo PCA
     pca(train_x, test_x)
 
+    
     '''
     fs = SelectKBest(score_func=mutual_info_classif, k=13)
     # fs = SelectKBest(score_func=f_classif, k='all')
@@ -159,13 +182,36 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
     #undersample = RepeatedEditedNearestNeighbours(n_neighbors=6, max_iter = 900000, kind_sel = 'mode', n_jobs = -1)
     #undersample = NeighbourhoodCleaningRule(n_neighbors=10,threshold_cleaning=0, n_jobs = -1,  kind_sel = 'mode')
     #undersample =EditedNearestNeighbours(n_neighbors=10, kind_sel = 'mode', n_jobs = -1)
+    train_y.data = LabelEncoder().fit_transform(train_y.data)
+    # summarize distribution
+    counter = Counter(train_y.data)
+    for k, v in counter.items():
+        per = v / len(train_y.data) * 100
+        print('Class=%d, n=%d (%.3f%%)' % (k, v, per))
+    print("\n\n")
+    strategy = {0: 2000, 1: 400, 2: 800, 3: 1000}
+    strategy2 =[(0, 1407), (1, 262), (2, 800), (3, 1000)]
 
     undersample =AllKNN(allow_minority=True, n_neighbors=7, kind_sel = 'mode', n_jobs = -1) #migliore!!!!
-    undersample =InstanceHardnessThreshold(random_state=42)
+    #undersample =RandomUnderSampler( sampling_strategy = strategy) #migliore!!!!
+
+    #undersample =InstanceHardnessThreshold(random_state=42)
 
 
     # transform the dataset
-    #train_x.data, train_y.data = undersample.fit_resample(train_x.data, train_y.data)
+    train_x.data, train_y.data = undersample.fit_resample(train_x.data, train_y.data)
+    counter = Counter(train_y.data)
+    for k, v in counter.items():
+        per = v / len(train_y.data) * 100
+        print('Class=%d, n=%d (%.3f%%)' % (k, v, per))
+
+    print("\n\n")
+    #oversample = ADASYN (random_state=42)  # migliore!!!!
+    # undersample =InstanceHardnessThreshold(random_state=42)
+
+
+    # transform the dataset
+    #train_x.data, train_y.data = oversample.fit_resample(train_x.data, train_y.data)
     #test_x.data, test_y.data = undersample.fit_resample(test_x.data, test_y.data)
     ''' 
     train_y.data = LabelEncoder().fit_transform(train_y.data)
@@ -220,6 +266,9 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
 
     '''
 
+
+
+
 def zScore(dataset):
     z = np.abs(stats.zscore(dataset.data))
     print(z)
@@ -253,7 +302,11 @@ def pca(train_x, test_x):
 
 
 
-
+'''
+È buona norma normalizzare le feature che utilizzano scale e intervalli diversi.
+Non normalizzare i dati rende l'allenamento più difficile e rende il modello risultante
+dipendente dalla scelta delle unità nell'input.
+'''
 def scale(train_x, test_x, train_y, test_y):
 
         matrix(train_x, test_x, train_y, test_y)
@@ -285,31 +338,33 @@ def matrix(train_x, test_x, train_y, test_y):
 
 
 
-def  standardScaler(train_x, test_x):
-    '''
-    È buona norma normalizzare le feature che utilizzano scale e intervalli diversi.
-    Non normalizzare i dati rende l'allenamento più difficile e rende il modello risultante
-    dipendente dalla scelta delle unità nell'input.
-    '''
+def standardScaler(train_x, test_x):
 
-    scaler = sklearn.preprocessing.StandardScaler()
-    scaler.fit(train_x.data) # ATTENTIONE! SI USA LA MEDIA E VARIANZA DEL TRAINING SET
+    scaler= prep.StandardScaler()
+    scaler.fit(train_x.data)
     train_x.data = scaler.transform(train_x.data)
 
     if test_x is not None:
 
         test_x.data = scaler.transform(test_x.data)
 
+    print(pd.DataFrame(train_x.data).describe())
+    return train_x.data
 
 def minMaxScaler(train_x, test_x):
 
     #feature_range=(0, 2)
-    scaler_x = prep.MinMaxScaler(feature_range=(-2, 2))
+    scaler_x = prep.MinMaxScaler(feature_range=(-1, 1))
+
     scaler_x.fit(train_x.data)
 
     train_x.data = scaler_x.transform(train_x.data)
+
     if test_x is not None:
         test_x.data = scaler_x.transform(test_x.data)
+
+    print(pd.DataFrame(train_x.data).describe())
+    return train_x.data
 
 def maxAbsScaler(train_x, test_x):
     scaler = MaxAbsScaler()
@@ -319,14 +374,53 @@ def maxAbsScaler(train_x, test_x):
     if test_x is not None:
         test_x.data = scaler.transform(test_x.data)
 
+    print(pd.DataFrame(train_x.data).describe())
+    return train_x.data
+
 def robustScaler(train_x, test_x):
-    scaler = RobustScaler(quantile_range=(25, 75))
+    scaler = RobustScaler(quantile_range=(25, 75), with_centering = False)
     scaler.fit(train_x.data)
     train_x.data = scaler.transform(train_x.data)
 
     if test_x is not None:
         test_x.data = scaler.transform(test_x.data)
+    return train_x.data
 
+def plotScalers(train_x, test_x, scalerName):
+
+    dataset = pd.DataFrame(train_x.data)
+    for colName in dataset:
+        print("colName: ", colName)
+        # = 'F1'
+        #dataset = pd.DataFrame(train_x.data)
+        #print("dataset = ", dataset)
+        changeColNames(dataset)
+        orig = dataset[colName]
+        #print("provaaa:", dataset[colName])
+        orig_mean = orig.mean()
+        bins = 50
+        alpha = 0.5
+
+        #before Scaling
+        plt.figure(figsize=(10, 5))
+        plt.hist(orig, bins, alpha=alpha, label='Before Scaling')
+        plt.axvline(orig_mean, color='k', linestyle='dashed', linewidth=1)
+
+
+        #afterScaling
+        dataset2 = pd.DataFrame(standardScaler(train_x,test_x))
+        changeColNames(dataset2)
+        normalized = dataset2[colName]
+        plt.suptitle(colName)
+        plt.hist(normalized, bins, alpha=alpha, label='After Scaling with ' + scalerName)
+        plt.axvline(normalized.mean(), color='k', linestyle='dashed', linewidth=1)
+        plt.legend(loc='upper right')
+
+        plt.figure(figsize=(5, 5))
+
+        #g = sns.jointplot(x="median_income", y=scalerName, data=dfX, kind='hex', ratio=3)
+       # train_x.data = standardScaler(train_x)
+        plt.show()
 
 
 #sostuisce outliers con media per ogni colonna
@@ -482,23 +576,20 @@ def outlierDetection(train_x, test_x):
 
 
 
-
-
-        '''
         if find_method == "DBSCAN":
             print("\n\nOUTLIERS WITH DBSCAN\n")
             print("\n------ train ------")
             dbScan(train_x, colName)
             print("\n------ test ------")
             dbScan(test_x, colName)
-        '''
+
 
         if substitute_method == "KNN" :
 
             #una volta che ho la lista di outliers, li sostituisco con il metodo KNN, che avrà come input sia
             #il training che il test, poichè devo modificarli entrambi colonna x colonna
-            #knnDetectionTRAIN(train_x,test_x,colName)
             knnDetectionTRAIN(train_x,test_x,colName)
+            #knnDetectionTRAIN2(train_x,test_x,colName)
 
 
 
@@ -528,28 +619,116 @@ def outlierDetection(train_x, test_x):
         plt.show()
 
 
-def dbScan(dataset_x, dataset_y):
+
+
+def dbScan(dataset_x):
 
     model = DBSCAN(
      eps = 5,
      metric='euclidean',
-     min_samples = 5,
-     n_jobs = -1).fit_predict(dataset_x.data)
+     min_samples = 10,
+     n_jobs = -1).fit(dataset_x.data)
 
     #clusters = model.fit_predict(train_x.data)
-    mask = model != -1
 
-    outliers = dataset_x.data[mask]
+
+    dataset_x.outliers = dataset_x.data[model.labels_ == -1]
+
+    print("model ==== ", model, "\n\n")
+
+    print("outliers ==== ", dataset_x.outliers, "\n\n")
+    for colName in dataset_x.outliers.columns:
+        for j in dataset_x.outliers[colName]:
+            dataset_x.data[colName][dataset_x.data[colName] == j] = np.nan
+
+
+    getNaCount(dataset_x)
+
+
+    imputer = KNNImputer(n_neighbors=3)
+    imputed = imputer.fit_transform(dataset_x.data)
+    dataset_x.data = pd.DataFrame(imputed, columns=dataset_x.data.columns)
+
+    return dataset_x.outliers
+
+
+def isoFor(dataset_x, dataset_y):
+
+    model = IsolationForest(contamination=0.5)
+    yhat = model.fit_predict(dataset_x.data)
+
+    #clusters = model.fit_predict(train_x.data)
+
+
+    outliers = dataset_x.data[yhat == -1]
+
     print("model ==== ", model, "\n\n")
 
     print("outliers ==== ", outliers, "\n\n")
+    '''
+    for colName in dataset_x.outliers.columns:
+        for j in dataset_x.outliers[colName]:
+            dataset_x.data[colName][dataset_x.data[colName] == j] = np.nan
+    '''
 
-    print("mask------------", mask)
+    for colName in outliers.columns:
+        print("colName:", colName)
+        dataset_x.outliers = []
+        for j in outliers[colName]:
+            for i in dataset_x.data[colName]:
+                if i == j:
+                    dataset_x.outliers.append(i)
 
-    dataset_x.data  = dataset_x.data.iloc[mask, :]
-    dataset_y.data =  dataset_y.data.iloc[mask]
-    print( dataset_x.data.shape,  dataset_y.data.shape)
+        y = dataset_x.data[colName].copy()
+        for m in dataset_x.outliers:
+            # print("i ==== ", i)
+            y = y[y != m]
 
+        lenX = len(dataset_x.data[colName]) - len(dataset_x.outliers)
+        rows = lenX
+        col = 1
+        X = [[0 for i in range(col)] for j in range(rows)]  # inizializzo X come lista 2D
+        count_X_position = 0
+        for k in y:
+            # print("count X = ", count_X_position,"     data2_elem = ",i)
+            # print("k ==== ", k)
+
+            X[count_X_position][0] = k
+            # print("X[count_X_position][0] = ", X[count_X_position][0])
+            count_X_position = count_X_position + 1
+
+        neigh = KNeighborsRegressor(n_neighbors=3, n_jobs=-1)
+        # neigh = KNeighborsClassifier(n_neighbors=3, algorithm = 'kd_tree' , weights = 'distance')
+
+        neigh.fit(X, y)
+
+        # predict
+        result = []
+        for n in dataset_x.outliers:
+            result.append(neigh.predict([[n]]))
+
+        result = np.unique(result, axis=0)
+        print("len outliers: ", len(dataset_x.outliers), "len result: ", len(result))
+        print("result senza duplicati: ", result)
+        dataset_x.result = []
+        for k in result:
+            print("k = ", k[0])
+            dataset_x.result.append(k[0])
+        if dataset_y is not None:
+            dataset_y.result = dataset_x.result
+
+        substituteOutliers(dataset_x, colName)
+        #substituteOutliers(dataset_y, colName)
+                #dataset_x.data[colName][dataset_x.data[colName] == j] = np.nan
+
+    getNaCount(dataset_x)
+
+
+    imputer = KNNImputer(n_neighbors=3)
+    imputed = imputer.fit_transform(dataset_x.data)
+    dataset_x.data = pd.DataFrame(imputed, columns=dataset_x.data.columns)
+
+    return dataset_x.outliers
 
 #calcola gli outliers con il metodo IQR e stampa il boxplot
 #input: colonna training set della quale troviamo gli outliers e titolo boxplot
@@ -964,7 +1143,9 @@ def knnDetectionTRAIN(train_x, test_x, colName):
     print("\n\n--------- KNN TRAIN ------ ")
 
     # fit
-    neigh = KNeighborsRegressor(n_neighbors=3)
+    neigh = KNeighborsRegressor(n_neighbors=3, n_jobs = -1)
+    #neigh = KNeighborsClassifier(n_neighbors=3, algorithm = 'kd_tree' , weights = 'distance')
+
     neigh.fit(X, y)
 
     # predict
@@ -996,7 +1177,8 @@ def knnDetectionTRAIN(train_x, test_x, colName):
 
 def knnDetectionTRAIN2(train_x, test_x, colName):
 
-    imputer = KNNImputer(n_neighbors=2)
+    #imputer = KNNImputer(n_neighbors=2)
+    imputer = IterativeImputer(random_state = 42)
     imputed = imputer.fit_transform(train_x.data)
     imputed_test = imputer.transform(test_x.data)
     train_x.data = pd.DataFrame(imputed, columns=train_x.data.columns)
@@ -1023,9 +1205,14 @@ def substituteOutliers(dataset, colName):
                 res = checkClosestOutlier(i, dataset.result)
                 dataset.data[colName][dataset.data[colName] == i] = (res)
 
-        if find_method == "ZSCORE" :
-            for i in dataset.outliers:
-                dataset.data[colName][dataset.data[colName] == i] = (dataset.result[0][0])
+        if find_method == "ZSCORE" or   find_method == "DBSCAN":
+            if len(dataset.outliers) == 1:
+                for i in dataset.outliers:
+                    dataset.data[colName][dataset.data[colName] == i] = (dataset.result[0][0])
+            if len(dataset.outliers) > 1:
+                for i in dataset.outliers:
+                    res = checkClosestOutlier2(i, dataset.result)
+                    dataset.data[colName][dataset.data[colName] == i] = (res)
 
         if find_method == "ZSCORE2":
             if len(dataset.outliers) == 1:
@@ -1072,6 +1259,16 @@ def checkClosestOutlier(outlier,resultList):
     else :
         return diff1
 
+def checkClosestOutlier2(outlier,resultList):
+
+    resultList = np.asarray(resultList)
+    idx = (np.abs(resultList - outlier)).argmin()
+    return resultList[idx]
+
+
+
+
+
 def checkOutliersAfterReplacement(dataset,colName):
 
     if find_method == "IQR":
@@ -1084,6 +1281,7 @@ def checkOutliersAfterReplacement(dataset,colName):
 
     if find_method == "ZSCORE2":
         outliers = outZSCORE_global(dataset,colName)
+
 
     if len(outliers) == 0:
         print(colName, ": KNN terminato, outliers sostituiti\n\n")
@@ -1212,8 +1410,8 @@ def main():
 
 
 
-    #crossValidation.cross2(train_x, test_x, train_y, test_y, find_method)
-    crossValidation.cross_underSampl(train_x, test_x, train_y, test_y)
+    crossValidation.cross4(train_x, test_x, train_y, test_y, find_method)
+    #crossValidation.cross_underSampl(train_x, test_x, train_y, test_y)
 
 
     print("dict === ", train_x.outliersDict)
