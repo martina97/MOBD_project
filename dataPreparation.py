@@ -5,6 +5,8 @@ import sklearn.preprocessing as prep
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import missingno as msno
+import plotly.express as px
 from imblearn.ensemble import BalancedBaggingClassifier
 from imblearn.over_sampling import SMOTE, RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler, NearMiss, CondensedNearestNeighbour, TomekLinks, \
@@ -13,10 +15,10 @@ from imblearn.under_sampling import RandomUnderSampler, NearMiss, CondensedNeare
 from matplotlib import pyplot as plt
 from sklearn.experimental import enable_iterative_imputer
 
-from pyod.models.knn import KNN
 from scipy.stats import stats
 from sklearn.covariance import EllipticEnvelope, EmpiricalCovariance, MinCovDet
-from sklearn.decomposition import PCA, TruncatedSVD
+from sklearn.decomposition import PCA, TruncatedSVD, NMF, FactorAnalysis, FastICA, IncrementalPCA, SparsePCA, \
+    MiniBatchSparsePCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
 from sklearn.ensemble import IsolationForest
 from sklearn.feature_selection import VarianceThreshold, RFE, SelectKBest, mutual_info_classif, f_classif, \
@@ -24,13 +26,14 @@ from sklearn.feature_selection import VarianceThreshold, RFE, SelectKBest, mutua
 from sklearn.impute import KNNImputer, SimpleImputer, IterativeImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.manifold import Isomap, LocallyLinearEmbedding
-from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier, RadiusNeighborsRegressor, LocalOutlierFactor
+from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier, RadiusNeighborsRegressor, LocalOutlierFactor, \
+    RadiusNeighborsClassifier, NearestCentroid
 from sklearn.preprocessing import MaxAbsScaler, RobustScaler, PowerTransformer, QuantileTransformer, Normalizer, \
     LabelEncoder
 from sklearn.svm import OneClassSVM
 
 import crossValidation
-from sklearn.cluster import DBSCAN
+from sklearn.cluster import DBSCAN, KMeans
 from matplotlib import cm
 import winsound
 
@@ -45,8 +48,8 @@ find_method = "ZSCORE"
 substitute_method = "KNN"
 #substitute_method = "MEAN"
 
-#scaleType = "STANDARD"
-scaleType = "MINMAX"
+scaleType = "STANDARD"
+#scaleType = "MINMAX"
 #scaleType = "MAX_ABS"
 #scaleType = "ROBUST"
 
@@ -97,6 +100,7 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
     #naMean(train_x,test_x)
 
 
+
     imputer = KNNImputer(n_neighbors=3)
     #imputer = IterativeImputer(random_state=42, imputation_order = 'roman')
 
@@ -120,6 +124,7 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
     #zScore(train_x)
 
 
+
     #outliers detection
     if find_method == "ZSCORE2":
         outlierDetection_zScoreGlobal(train_x, test_x)
@@ -128,18 +133,27 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
         isoFor(train_x, test_x)
 
     else:
-        outlierDetection(train_x, test_x)
+        outlierDetection(train_x, test_x, train_y)
 
 
     #dbScan(train_x, train_y)
     #dbScan(test_x, test_y)
 
 
+    box = plt.boxplot(train_x.data, notch=True, patch_artist=True)
+    plt.suptitle("After detecting outliers with IQR and KNN")
+    colors = ['cyan', 'lightblue', 'lightgreen', 'tan', 'pink', 'blue', 'green',
+              'purple', 'red', 'C10', 'C4', 'C3', 'C6', 'C1', 'C2', 'C9', 'C5', 'yellow',
+              'magenta', 'C19']
+    for patch, color in zip(box['boxes'], colors):
+        patch.set_facecolor(color)
+
+    plt.show()
 
 
     #normalizziamo i dati
     scale(train_x, test_x, train_y, test_y)
-    #plotScalers(train_x, test_x, scaleType)
+    #plotScalers(train_x, test_x)
     #dbScan(train_x)
     np.savetxt("train_x.PAIRPLOT.csv", train_x.data, delimiter=",")
     datasetPath = './train_x.PAIRPLOT.csv'
@@ -152,7 +166,7 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
     #applichiamo PCA
     pca(train_x, test_x)
 
-    
+
     '''
     fs = SelectKBest(score_func=mutual_info_classif, k=13)
     # fs = SelectKBest(score_func=f_classif, k='all')
@@ -185,12 +199,26 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
     train_y.data = LabelEncoder().fit_transform(train_y.data)
     # summarize distribution
     counter = Counter(train_y.data)
+
+    target = []
+    freq = []
     for k, v in counter.items():
         per = v / len(train_y.data) * 100
+        target.append(k)
+        freq.append(per)
         print('Class=%d, n=%d (%.3f%%)' % (k, v, per))
+
     print("\n\n")
-    strategy = {0: 2000, 1: 400, 2: 800, 3: 1000}
-    strategy2 =[(0, 1407), (1, 262), (2, 800), (3, 1000)]
+
+    unique, counts = np.unique(train_y.data, return_counts=True)
+    #plt.bar(unique, counts)
+    plt.bar(target, freq)
+
+    plt.title('Class Frequency')
+    plt.xlabel('Class')
+    plt.ylabel('Frequency')
+
+    plt.show()
 
     undersample =AllKNN(allow_minority=True, n_neighbors=7, kind_sel = 'mode', n_jobs = -1) #migliore!!!!
     #undersample =RandomUnderSampler( sampling_strategy = strategy) #migliore!!!!
@@ -281,10 +309,12 @@ def zScore(dataset):
 
 def pca(train_x, test_x):
     pca = PCA()
+    #pca =MiniBatchSparsePCA(n_components=15, random_state=42, batch_size=50)
     train_x.data = pca.fit_transform(train_x.data)
 
     if test_x is not None:
         test_x.data = pca.transform(test_x.data)
+    ''' 
     explained_variance = pca.explained_variance_ratio_
     count = 0
     for i in explained_variance:
@@ -292,13 +322,27 @@ def pca(train_x, test_x):
         print("explained_variance", count, "--->", i)
 
     print("explained_variance:", explained_variance)
+    '''
+    ''' 
+    exp_var_cumul = np.cumsum(pca.explained_variance_ratio_)
+    fig = px.area(
+        x=range(1, exp_var_cumul.shape[0] + 1),
+        y=exp_var_cumul,
+        labels={"x": "# Components", "y": "Explained Variance"},
+    )
+    fig.show()
+    '''
+    exp_var_cumsum = pd.Series(np.round(pca.explained_variance_ratio_.cumsum(), 4) * 100)
+    for index, var in enumerate(exp_var_cumsum):
+        print('if n_components= %d,   variance=%f' % (index, np.round(var, 3)))
+
 
     pca = PCA(n_components=15)
+    #pca =MiniBatchSparsePCA(n_components=15, random_state=42, batch_size=50)
     train_x.data = pca.fit_transform(train_x.data)
 
     if test_x is not None:
         test_x.data = pca.transform(test_x.data)
-
 
 
 
@@ -386,7 +430,7 @@ def robustScaler(train_x, test_x):
         test_x.data = scaler.transform(test_x.data)
     return train_x.data
 
-def plotScalers(train_x, test_x, scalerName):
+def plotScalers(train_x, test_x):
 
     dataset = pd.DataFrame(train_x.data)
     for colName in dataset:
@@ -403,7 +447,7 @@ def plotScalers(train_x, test_x, scalerName):
 
         #before Scaling
         plt.figure(figsize=(10, 5))
-        plt.hist(orig, bins, alpha=alpha, label='Before Scaling')
+        plt.hist(orig, bins, alpha=alpha, label='Before Scaling', color = 'C4')
         plt.axvline(orig_mean, color='k', linestyle='dashed', linewidth=1)
 
 
@@ -412,7 +456,7 @@ def plotScalers(train_x, test_x, scalerName):
         changeColNames(dataset2)
         normalized = dataset2[colName]
         plt.suptitle(colName)
-        plt.hist(normalized, bins, alpha=alpha, label='After Scaling with ' + scalerName)
+        plt.hist(normalized, bins, alpha=alpha, label='After Scaling' , color = 'lightblue')
         plt.axvline(normalized.mean(), color='k', linestyle='dashed', linewidth=1)
         plt.legend(loc='upper right')
 
@@ -421,6 +465,28 @@ def plotScalers(train_x, test_x, scalerName):
         #g = sns.jointplot(x="median_income", y=scalerName, data=dfX, kind='hex', ratio=3)
        # train_x.data = standardScaler(train_x)
         plt.show()
+
+def plotScalers2(train_x, test_x):
+
+    df = pd.DataFrame(train_x.data)
+    changeColNames(df)
+
+    fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(6, 5))
+
+    ax1.set_title('Before Scaling')
+
+    for colName in df.columns:
+        sns.kdeplot(df[colName], ax=ax1)
+
+    ax2.set_title('After MaxAbs Scaler')
+    df = pd.DataFrame(maxAbsScaler(train_x, test_x))
+    changeColNames(df)
+    for colName in df.columns:
+        sns.kdeplot(df[colName], ax=ax2)
+
+    plt.show()
+
+
 
 
 #sostuisce outliers con media per ogni colonna
@@ -533,12 +599,34 @@ def outlierDetection_zScoreGlobal(train_x, test_x):
 
             col_z = col_z + 1
 
-def outlierDetection(train_x, test_x):
+def outlierDetection(train_x, test_x, train_y):
+
+    title = 'Before Outliers Detection'
+
+    box = plt.boxplot(train_x.data, notch=True, patch_artist=True)
+    plt.suptitle(title)
+    colors = ['cyan', 'lightblue', 'lightgreen', 'tan', 'pink','blue', 'green',
+              'purple', 'red', 'C10','C4','C3','C6','C1','C2','C9','C5','yellow',
+              'magenta','C19']
+    for patch, color in zip(box['boxes'], colors):
+        patch.set_facecolor(color)
+
+
+
+    plt.show()
+
+
+
+
 
     for colName in train_x.data.columns:
         print("\n\ncolName = ", colName)
 
         title = colName + ' before KNN'
+        train_x.data[colName].plot(kind='hist',title = title, color = 'C4', label = "before")
+        plt.show
+
+
 
         #metodi diversi per il calcolo di outliers sia per train_x che per test_x
         if find_method == "IQR":
@@ -547,6 +635,8 @@ def outlierDetection(train_x, test_x):
             print("\n------ train ------")
             #outIQR(train_x,"train" + title,colName)
             outIQR2(train_x, test_x, "train" + title,colName)
+            #outIQR3(train_x, test_x, "train" + title,colName)
+
 
             #print("\n------ test ------")
             #outIQR(test_x,"test" + title,colName)
@@ -588,7 +678,7 @@ def outlierDetection(train_x, test_x):
 
             #una volta che ho la lista di outliers, li sostituisco con il metodo KNN, che avrà come input sia
             #il training che il test, poichè devo modificarli entrambi colonna x colonna
-            knnDetectionTRAIN(train_x,test_x,colName)
+            knnDetectionTRAIN(train_x,train_y,test_x,colName)
             #knnDetectionTRAIN2(train_x,test_x,colName)
 
 
@@ -609,12 +699,12 @@ def outlierDetection(train_x, test_x):
         substituteOutliers(test_x, colName)
         checkOutliersAfterReplacement(test_x, colName)
 
-        fig1, ax = plt.subplots()
-        ax.set_title(colName + " after KNN")
-        ax.set_xticklabels(["TRAIN", "TEST"])
+        title = colName + ' after KNN'
+        train_x.data[colName].plot(kind='hist', title=colName, color = 'lightgreen')
+        plt.show
 
-        ax.boxplot([train_x.dataColumn, test_x.dataColumn])
-        #fig1.tight_layout()
+
+
 
         plt.show()
 
@@ -977,9 +1067,9 @@ def outZSCORE2(train_x,test_x, colName):
 
 
     for i in train_x.dataColumn:
-        z = (i - mean) / std
+        z =(i - mean) / std
 
-        if z > threshold :
+        if z > threshold:
             count = count + 1
             train_x.outliers.append(i)
             print("-- outlier n ", count, ":  ", train_x.outliers[count - 1])
@@ -1103,7 +1193,7 @@ def outZSCORE_global(dataset, z_array, col_z, z,colName):
 
 #data la lsita di outliers di una colonna, li sostituisco con il metodo KNN, che avrà come input sia
 #il training che il test, poichè devo modificarli entrambi colonna x colonna
-def knnDetectionTRAIN(train_x, test_x, colName):
+def knnDetectionTRAIN(train_x, train_y, test_x, colName):
 
 
 
@@ -1144,9 +1234,9 @@ def knnDetectionTRAIN(train_x, test_x, colName):
 
     # fit
     neigh = KNeighborsRegressor(n_neighbors=3, n_jobs = -1)
-    #neigh = KNeighborsClassifier(n_neighbors=3, algorithm = 'kd_tree' , weights = 'distance')
 
     neigh.fit(X, y)
+
 
     # predict
     result = []
@@ -1177,8 +1267,8 @@ def knnDetectionTRAIN(train_x, test_x, colName):
 
 def knnDetectionTRAIN2(train_x, test_x, colName):
 
-    #imputer = KNNImputer(n_neighbors=2)
-    imputer = IterativeImputer(random_state = 42)
+    imputer = KNNImputer(n_neighbors=1)
+    #imputer = IterativeImputer(random_state = 42)
     imputed = imputer.fit_transform(train_x.data)
     imputed_test = imputer.transform(test_x.data)
     train_x.data = pd.DataFrame(imputed, columns=train_x.data.columns)
@@ -1199,26 +1289,29 @@ def substituteOutliers(dataset, colName):
     '''
     if substitute_method == "KNN":
         if find_method == "IQR":
-
-            # sostuituiamo i risultati con gli outliers nel dataset originario
-            for i in dataset.outliers:
-                res = checkClosestOutlier(i, dataset.result)
-                dataset.data[colName][dataset.data[colName] == i] = (res)
-
-        if find_method == "ZSCORE" or   find_method == "DBSCAN":
-            if len(dataset.outliers) == 1:
+            if len(dataset.result) == 1:
                 for i in dataset.outliers:
                     dataset.data[colName][dataset.data[colName] == i] = (dataset.result[0][0])
-            if len(dataset.outliers) > 1:
+            # sostuituiamo i risultati con gli outliers nel dataset originario
+            if len(dataset.result) > 1:
+                for i in dataset.outliers:
+                    res = checkClosestOutlier(i, dataset.result)
+                    dataset.data[colName][dataset.data[colName] == i] = (res)
+
+        if find_method == "ZSCORE" or   find_method == "DBSCAN":
+            if len(dataset.result) == 1:
+                for i in dataset.outliers:
+                    dataset.data[colName][dataset.data[colName] == i] = (dataset.result[0][0])
+            if len(dataset.result) > 1:
                 for i in dataset.outliers:
                     res = checkClosestOutlier2(i, dataset.result)
                     dataset.data[colName][dataset.data[colName] == i] = (res)
 
         if find_method == "ZSCORE2":
-            if len(dataset.outliers) == 1:
+            if len(dataset.result) == 1:
                 for i in dataset.outliers:
                     dataset.data[colName][dataset.data[colName] == i] = (dataset.result[0][0])
-            if len(dataset.outliers) == 2:
+            if len(dataset.result) == 2:
                 for i in dataset.outliers:
                     res = checkClosestOutlier(i, dataset.result)
                     dataset.data[colName][dataset.data[colName] == i] = (res)
@@ -1390,6 +1483,11 @@ def getNaCount(dataset):
     count = boolean_mask.sum(axis=0)
     print("count NaN: ",count)
     dataset.naCount=count
+    #print(boolean_mask.any())
+    return count
+
+
+
 
 def main():
     datasetPath = './training_set.csv'
@@ -1416,7 +1514,7 @@ def main():
 
     print("dict === ", train_x.outliersDict)
     #suono quando finisce
-    duration = 100  # milliseconds
+    duration = 400  # milliseconds
     freq = 440  # Hz
     winsound.Beep(freq, duration)
 

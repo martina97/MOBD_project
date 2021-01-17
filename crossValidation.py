@@ -48,7 +48,7 @@ def cross4(train_x, test_x, train_y, test_y,method):
         'tol': (0.0000000001, 0.0001, 0.001, 0.01, 0.1),
 
     }
-    clf = model_selection.GridSearchCV(classifier, parameters,  scoring='f1_macro', cv=5, refit=True, n_jobs=-1)
+    clf = model_selection.GridSearchCV(classifier, parameters,  scoring='f1_macro', cv=5,  n_jobs=-1)
 
     clf.fit(train_x.data, train_y.data.ravel())
     best_parameters = clf.best_params_
@@ -505,7 +505,7 @@ def evaluate_classifier(classifier, test_x, test_y):
     print(confusion_matrix)
     f1_score = metrics.f1_score(test_y.data, pred_y, average='macro')
     acc_score = metrics.accuracy_score(test_y.data, pred_y)
-    print('F1: ', f1_score)
+    print('F1 Robust: ', f1_score)
     print('Accuracy: ', acc_score)
     report=classification_report( test_y.data, pred_y)
     print(report)
