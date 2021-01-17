@@ -1,3 +1,4 @@
+import bisect
 from collections import Counter
 
 import sklearn
@@ -41,7 +42,6 @@ import winsound
 
 #find_method = "IQR"
 find_method = "ZSCORE"
-#find_method = "ZSCORE2"
 #find_method = "DBSCAN"
 
 
@@ -52,6 +52,14 @@ scaleType = "STANDARD"
 #scaleType = "MINMAX"
 #scaleType = "MAX_ABS"
 #scaleType = "ROBUST"
+
+classifier = "MLP"
+classifier = "KNeighbors"
+classifier = "SVC"
+classifier = "DecisionTree"
+classifier = "RandomForest"
+classifier = "QuadraticDiscriminantAnalysis"
+
 
 class Dataset:
   def __init__(self, name, data):
@@ -110,15 +118,6 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
     test_x.data = pd.DataFrame(imputed_test, columns=test_x.data.columns)
 
 
-    '''
-    imputer = KNNImputer(n_neighbors=5, weights='uniform', metric='nan_euclidean')
-    #imputer.fit(train_x.data)
-    #imputer.fit(test_x.data)
-    getNaCount(train_x)
-    train_x.data = pd.DataFrame(imputer.fit_transform(train_x.data))
-    getNaCount(train_x)
-    test_x.data = pd.DataFrame(imputer.fit_transform(test_x.data))
-    '''
 
     #dbScan(train_x)
     #zScore(train_x)
@@ -196,44 +195,9 @@ def preProcessing(train_x, test_x, train_y, test_y, x, y):
     #undersample = RepeatedEditedNearestNeighbours(n_neighbors=6, max_iter = 900000, kind_sel = 'mode', n_jobs = -1)
     #undersample = NeighbourhoodCleaningRule(n_neighbors=10,threshold_cleaning=0, n_jobs = -1,  kind_sel = 'mode')
     #undersample =EditedNearestNeighbours(n_neighbors=10, kind_sel = 'mode', n_jobs = -1)
-    train_y.data = LabelEncoder().fit_transform(train_y.data)
-    # summarize distribution
-    counter = Counter(train_y.data)
 
-    target = []
-    freq = []
-    for k, v in counter.items():
-        per = v / len(train_y.data) * 100
-        target.append(k)
-        freq.append(per)
-        print('Class=%d, n=%d (%.3f%%)' % (k, v, per))
+    Resampling(train_x, train_y)
 
-    print("\n\n")
-
-    unique, counts = np.unique(train_y.data, return_counts=True)
-    #plt.bar(unique, counts)
-    plt.bar(target, freq)
-
-    plt.title('Class Frequency')
-    plt.xlabel('Class')
-    plt.ylabel('Frequency')
-
-    plt.show()
-
-    undersample =AllKNN(allow_minority=True, n_neighbors=7, kind_sel = 'mode', n_jobs = -1) #migliore!!!!
-    #undersample =RandomUnderSampler( sampling_strategy = strategy) #migliore!!!!
-
-    #undersample =InstanceHardnessThreshold(random_state=42)
-
-
-    # transform the dataset
-    train_x.data, train_y.data = undersample.fit_resample(train_x.data, train_y.data)
-    counter = Counter(train_y.data)
-    for k, v in counter.items():
-        per = v / len(train_y.data) * 100
-        print('Class=%d, n=%d (%.3f%%)' % (k, v, per))
-
-    print("\n\n")
     #oversample = ADASYN (random_state=42)  # migliore!!!!
     # undersample =InstanceHardnessThreshold(random_state=42)
 
@@ -364,6 +328,54 @@ def scale(train_x, test_x, train_y, test_y):
         if scaleType == "ROBUST":
             robustScaler(train_x, test_x)
 
+def Resampling(train_x, train_y):
+    train_y.data = LabelEncoder().fit_transform(train_y.data)
+    # summarize distribution
+
+    piePlot(train_y, "Before Resampling")
+
+
+    undersample =AllKNN(allow_minority=True, n_neighbors=7, kind_sel = 'mode', n_jobs = -1) #migliore!!!!
+
+    # transform the dataset
+    train_x.data, train_y.data = undersample.fit_resample(train_x.data, train_y.data)
+
+
+    piePlot(train_y, "After Resampling")
+
+
+def piePlot(train_y, title):
+    counter = Counter(train_y.data)
+
+    freq = []
+    label = []
+
+    for k, v in counter.items():
+        per = v / len(train_y.data) * 100
+
+
+        #label.append("Class " + str(k))
+        bisect.insort(label, "Class " + str(k))
+        i = bisect.bisect(label,"Class " + str(k))
+        freq.insert(i-1, per)
+
+        print('Class=%d, n=%d (%.3f%%)' % (k, v, per))
+
+
+    print("\n\n")
+
+    plt.pie(
+        freq,
+        labels=label,
+        shadow=True,
+        # colors=colors,
+        startangle=90,
+        autopct='%1.1f%%'
+    )
+    plt.axis('equal')
+    plt.tight_layout()
+    plt.title(title)
+    plt.show()
 
 
 def matrix(train_x, test_x, train_y, test_y):
@@ -1504,12 +1516,11 @@ def main():
     y = dataset.iloc[:, 20].values
 
     preProcessing(train_x, test_x, train_y, test_y, x, y)
-    print(find_method, "---", substitute_method, "---", scaleType)
+    print(find_method, "---", substitute_method, "---", scaleType,  "--- ALLKNN")
 
 
 
     crossValidation.cross4(train_x, test_x, train_y, test_y, find_method)
-    #crossValidation.cross_underSampl(train_x, test_x, train_y, test_y)
 
 
     print("dict === ", train_x.outliersDict)
