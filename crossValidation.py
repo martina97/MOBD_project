@@ -7,7 +7,8 @@ import sklearn.svm as svm
 from imblearn.combine import SMOTEENN, SMOTETomek
 from imblearn.ensemble import BalancedBaggingClassifier
 from imblearn.under_sampling import CondensedNearestNeighbour, EditedNearestNeighbours, RepeatedEditedNearestNeighbours, \
-    AllKNN, InstanceHardnessThreshold, NearMiss, RandomUnderSampler
+    AllKNN, InstanceHardnessThreshold, NearMiss, RandomUnderSampler, ClusterCentroids, NeighbourhoodCleaningRule, \
+    OneSidedSelection, TomekLinks
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis, LinearDiscriminantAnalysis
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.gaussian_process import GaussianProcessClassifier
@@ -102,6 +103,7 @@ def cross2(train_x, test_x, train_y, test_y, method):
     for clf_name in clfs:
         # print(clf_name)
         clf = clfs[clf_name]
+        print(clf)
         clf.fit(train_x.data, train_y.data.ravel())
         pred_y = clf.predict(test_x.data)
         f1_scores[clf_name] = f1_score(test_y.data, pred_y, average='macro')
