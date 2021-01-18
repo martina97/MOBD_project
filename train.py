@@ -50,6 +50,8 @@ def preProcessing_train(trainingSet_x, trainingSet_y, train_x, train_y):
 
     dataPreparation.Resampling(trainingSet_x, trainingSet_y)
 
+    dataPreparation.save_object(trainingSet_x.outliersDict, 'dict.pkl')
+
     saveDataInCSV(trainingSet_x)
 
 
@@ -57,21 +59,23 @@ def evaluation_train(trainingSet_x, trainingSet_y):
     n_folds = 5
     metric = 'f1_macro'
 
-    classifier = QuadraticDiscriminantAnalysis()
+    clf = QuadraticDiscriminantAnalysis(reg_param= 0.0001,store_covariance= True, tol=0.1)
 
+    ''' 
     parameters = {
         'reg_param': (1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10),
         'store_covariance': [True, False],
         'tol': (1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10),
     }
+    '''
 
-    clf = model_selection.GridSearchCV(classifier, parameters, scoring=metric, cv=n_folds, refit=True, n_jobs=-1)
+    #clf = model_selection.GridSearchCV(classifier, parameters, scoring=metric, cv=n_folds, refit=True, n_jobs=-1)
     print("QuadraticDiscriminantAnalysis")
     clf.fit(trainingSet_x.data, trainingSet_y.data.ravel())
-    best_parameters = clf.best_params_
-    print("\n\nbest_parameters QuadraticDiscriminantAnalysis : ", best_parameters)
-    best_result = clf.best_score_
-    print("best_result QuadraticDiscriminantAnalysis: ", best_result)
+    #best_parameters = clf.best_params_
+    #print("\n\nbest_parameters QuadraticDiscriminantAnalysis : ", best_parameters)
+    #best_result = clf.best_score_
+    #print("best_result QuadraticDiscriminantAnalysis: ", best_result)
 
     return clf
 
@@ -80,31 +84,37 @@ def evaluation_train(trainingSet_x, trainingSet_y):
 
 
 def outliers_train(trainingSet_x):
+    print("dictionary outliers: ", trainingSet_x.outliersDict)
     for colName in trainingSet_x.data.columns:
         print("\n\ncolName = ", colName)
 
-        title = colName + ' before KNN'
 
         print("\n\nOUTLIERS WITH ZSCORE\n")
         res = dataPreparation.outZSCORE(trainingSet_x, None, colName)
-        mean = res[2]
-        std = res[3]
-        print("mean = ", mean, "\nstd = ", std)
+        print("dictionary outliers: ", trainingSet_x.outliersDict)
+
+        #mean = res[2]
+        #std = res[3]
+        #print("mean = ", mean, "\nstd = ", std)
 
         # aggiungo mean e std al dizionario, che servirà nella parte successiva in test.py
-        dataPreparation.appendDict(colName, mean, trainingSet_x)
-        dataPreparation.appendDict(colName, std, trainingSet_x)
+        #dataPreparation.appendDict(colName, mean, trainingSet_x)
+        #dataPreparation.appendDict(colName, std, trainingSet_x)
 
         # una volta che ho la lista di outliers, li sostituisco con il metodo KNN, che avrà come input sia
         # il training che il test, poichè devo modificarli entrambi colonna x colonna
         dataPreparation.knnDetectionTRAIN(trainingSet_x, None, colName)
+        print("dictionary outliers: ", trainingSet_x.outliersDict)
 
         # sostuituiamo i risultati con gli outliers nel dataset originario
         substituteOutliersTrain(trainingSet_x, colName)
+        print("dictionary outliers: ", trainingSet_x.outliersDict)
+
         # controllo outliers dopo aver applicato KNN
         checkOutliersAfterReplacementTrain(trainingSet_x, colName)
-
         print("dictionary outliers: ", trainingSet_x.outliersDict)
+
+    print("dictionary outliers: ", trainingSet_x.outliersDict)
 
 
 def substituteOutliersTrain(trainingSet_x, colName):

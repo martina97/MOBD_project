@@ -28,6 +28,10 @@ def preProcessing_test(testSet_x,testSet_y, test_x, test_y, preProcDataset):
 
     testSet_x.data = test_x
     testSet_y.data = test_y
+
+    np.savetxt("PROVAA TEST_X 1.csv", testSet_x.data, delimiter=",")
+    np.savetxt("PROVAA TEST_Y 1.csv", testSet_y.data, delimiter=",")
+
     print('SHAPE : test_x:', testSet_x.data.shape, "   test_y:", testSet_y.data.shape)
     print(' test_x:', testSet_x.data,"   test_y:", testSet_y.data)
 
@@ -39,18 +43,30 @@ def preProcessing_test(testSet_x,testSet_y, test_x, test_y, preProcDataset):
 
     dataPreparation.changeColNames(testSet_x.data)
 
+    #np.savetxt("PROVAA TEST_X 2.csv", testSet_x.data, delimiter=",")
+    #np.savetxt("PROVAA TEST_Y 2.csv", testSet_y.data, delimiter=",")
+
     #sostituisco i NaN con il valore della media della colonna calcolato precedentemente nel preProcessing
     replaceNaN(testSet_x)
+
+    #np.savetxt("PROVAA TEST_X 3.csv", testSet_x.data, delimiter=",")
+    #np.savetxt("PROVAA TEST_Y 3.csv", testSet_y.data, delimiter=",")
 
     print("\n\ntest_x dopo nan: ", testSet_x.data)
     #sostituisco gli outliers con il valore calcolato precedentemente nel preProcessing
     outliersDetection(testSet_x, preProcDataset)
+    #np.savetxt("PROVAA TEST_X 4.csv", testSet_x.data, delimiter=",")
+    #np.savetxt("PROVAA TEST_Y 4.csv", testSet_y.data, delimiter=",")
 
     matrixTest(testSet_x, testSet_y)
     #scaler
     standardScalerTest(testSet_x)
+    #np.savetxt("PROVAA TEST_X 5.csv", testSet_x.data, delimiter=",")
+    #np.savetxt("PROVAA TEST_Y 5.csv", testSet_y.data, delimiter=",")
     #pca
     pcaTest(testSet_x)
+    #np.savetxt("PROVAA TEST_X 6.csv", testSet_x.data, delimiter=",")
+    #np.savetxt("PROVAA TEST_Y 6.csv", testSet_y.data, delimiter=",")
 
 def matrixTest(testSet_x, testSet_y):
     testSet_x.data = np.float64(testSet_x.data)
@@ -64,8 +80,11 @@ def standardScalerTest(testSet_x):
     testSet_x.data = scaler.transform(testSet_x.data)
 
 def pcaTest(testSet_x):
-    pca = getObject('pca.pkl')
+    pca = getObject('pca1.pkl')
     testSet_x.data = pca.transform(testSet_x.data)
+    pca = getObject('pca2.pkl')
+    testSet_x.data = pca.transform(testSet_x.data)
+
 
 def replaceNaN(testSet_x):
 
@@ -111,8 +130,12 @@ def outZScoreTest(testSet_x, colName, preProcDataset):
     for colElement in testSet_x.data[colName]:
         testSet_x.dataColumn = np.append(testSet_x.dataColumn, colElement)
 
-    mean = float(preProcDataset[colName][0])
-    std = float(preProcDataset[colName][1])
+    #mean = float(preProcDataset[colName][0])
+    #std = float(preProcDataset[colName][1])
+
+    mean = testSet_x.outliersDict[colName][0]
+    std = testSet_x.outliersDict[colName][1]
+
 
     print("mean = ", mean, "std = ", std)
 
@@ -144,9 +167,10 @@ def createDataColumn(dataset,colName):
 
 def replaceOutliers(testSet_x, colName,preProcDataset):
 
+    substitution = testSet_x.outliersDict[colName][2]
+    print("substitution = ", substitution)
     for i in testSet_x.outliers:
-        valore = float(preProcDataset[colName][2])
-        testSet_x.data[colName][testSet_x.data[colName] == i] = (valore)
+        testSet_x.data[colName][testSet_x.data[colName] == i] = (substitution)
 
 
 def checkOutliers(testSet_x, colName, preProcDataset):
@@ -167,10 +191,10 @@ def getClf():
     with open ('returned_clf.pkl','rb') as input:
         clf = pickle.load(input)
 
-    best_parameters = clf.best_params_
-    print("\n\nbest_parameters  : ", best_parameters)
-    best_result = clf.best_score_
-    print("best_result : ", best_result)
+    #best_parameters = clf.best_params_
+    #print("\n\nbest_parameters  : ", best_parameters)
+    #best_result = clf.best_score_
+    #print("best_result : ", best_result)
 
     return clf
 
@@ -203,8 +227,15 @@ def main():
     test_x = testSet.iloc[:, 0:20].values
     test_y = testSet.iloc[:, 20].values
 
+    testSet_x.outliersDict = getObject('./dict.pkl')
+    print("prima colonna", testSet_x.outliersDict['F1'])
+    print("prima colonna", testSet_x.outliersDict['F1'][0])
+    print("prima colonna", testSet_x.outliersDict['F1'][1])
+    print("prima colonna", testSet_x.outliersDict['F1'][2])
+    #print("dict = " , dict)
     preProcessing_test(testSet_x,testSet_y, test_x, test_y,preProcDataset)
     clf = getClf()
+    print("clf = ", clf)
     crossValidation.evaluate_classifier(clf, testSet_x, testSet_y)
 
 

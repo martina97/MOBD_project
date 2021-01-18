@@ -220,6 +220,7 @@ def pca(train_x, test_x):
     pca = PCA()
     # pca =MiniBatchSparsePCA(n_components=15, random_state=42, batch_size=50)
     train_x.data = pca.fit_transform(train_x.data)
+    save_object(pca, "pca1.pkl")
 
     if test_x is not None:
         test_x.data = pca.transform(test_x.data)
@@ -248,11 +249,12 @@ def pca(train_x, test_x):
     pca = PCA(n_components=15)
     # pca =MiniBatchSparsePCA(n_components=15, random_state=42, batch_size=50)
     train_x.data = pca.fit_transform(train_x.data)
+    save_object(pca, "pca2.pkl")
 
     if test_x is not None:
         test_x.data = pca.transform(test_x.data)
 
-    save_object(pca, "pca.pkl")
+
 
 
 '''
@@ -789,6 +791,9 @@ def outZSCORE(train_x, test_x, colName):
     threshold = 3
     mean = np.mean(train_x.dataColumn)
     std = np.std(train_x.dataColumn)
+    appendDict(colName, mean, train_x)
+    appendDict(colName, std, train_x)
+
     train_x.outliers = []
 
     for i in train_x.dataColumn:
