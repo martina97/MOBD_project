@@ -7,6 +7,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from sklearn import model_selection
 from sklearn.decomposition import PCA
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neural_network import MLPClassifier
 import csv
@@ -14,28 +15,23 @@ import csv
 import pickle
 import dataPreparation
 
-find_method = dataPreparation.find_method
-substitute_method = dataPreparation.substitute_method
-scaleType = dataPreparation.scaleType
-
 
 class Dataset:
-  def __init__(self, name, data):
-    self.name = name
-    self.data = data
-    self.naCount = None
-    self.outliers = None    #lista outliers di una colonna
-    self.dataColumn = None  #elementi di una colonna
-    self.result = None
-    self.outliersDict = {}
+    def __init__(self, name, data):
+        self.name = name
+        self.data = data
+        self.naCount = None
+        self.outliers = None  # lista outliers di una colonna
+        self.dataColumn = None  # elementi di una colonna
+        self.result = None
+        self.outliersDict = {}
 
 
 def preProcessing_train(trainingSet_x, trainingSet_y, train_x, train_y):
-
     trainingSet_x.data = train_x
     trainingSet_y.data = train_y
 
-    print('SHAPE : Train_x:', train_x.data.shape,"   train_y:", train_y.data.shape)
+    print('SHAPE : Train_x:', train_x.data.shape, "   train_y:", train_y.data.shape)
     print('Train_x:', trainingSet_x.data, "   train_y:", trainingSet_y.data)
 
     trainingSet_x.data = pd.DataFrame(trainingSet_x.data)
@@ -43,108 +39,92 @@ def preProcessing_train(trainingSet_x, trainingSet_y, train_x, train_y):
 
     dataPreparation.changeColNames(trainingSet_x.data)
 
-    dataPreparation.naMean2(trainingSet_x, None)
-    print ("dictionary medie: ", trainingSet_x.outliersDict)
+    dataPreparation.naKNN(trainingSet_x, None)
 
     outliers_train(trainingSet_x)
-    print("dictionary outliers: ", trainingSet_x.outliersDict)
 
-
-    dataPreparation.scale(trainingSet_x, None, trainingSet_y, None)
+    dataPreparation.matrix(trainingSet_x, None, trainingSet_y, None)
+    dataPreparation.standardScaler(trainingSet_x, None)
 
     dataPreparation.pca(trainingSet_x, None)
 
+    dataPreparation.Resampling(trainingSet_x, trainingSet_y)
 
     saveDataInCSV(trainingSet_x)
 
-def evaluation_train(trainingSet_x, trainingSet_y):
 
+def evaluation_train(trainingSet_x, trainingSet_y):
     n_folds = 5
     metric = 'f1_macro'
 
-    classifier = MLPClassifier(max_iter=200)
+    classifier = QuadraticDiscriminantAnalysis()
 
-    parameter_space = {
-        'hidden_layer_sizes': [(50, 50, 50), (50, 100, 50), (100,)],
-        'alpha': [0.5, 1, 1.2],
+    parameters = {
+        'reg_param': (1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10),
+        'store_covariance': [True, False],
+        'tol': (1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10),
     }
 
-
-    clf = model_selection.GridSearchCV(classifier, parameter_space, scoring=metric, cv=n_folds, refit=True, n_jobs=-1)
-    print("MLP")
+    clf = model_selection.GridSearchCV(classifier, parameters, scoring=metric, cv=n_folds, refit=True, n_jobs=-1)
+    print("QuadraticDiscriminantAnalysis")
     clf.fit(trainingSet_x.data, trainingSet_y.data.ravel())
     best_parameters = clf.best_params_
-    print("\n\nbest_parameters MLP : ", best_parameters)
+    print("\n\nbest_parameters QuadraticDiscriminantAnalysis : ", best_parameters)
     best_result = clf.best_score_
-    print("best_result MLP: ", best_result)
+    print("best_result QuadraticDiscriminantAnalysis: ", best_result)
 
     return clf
 
-def save_object(obj, filename):
-    with open(filename, 'wb') as output:  # Overwrites any existing file.
-        pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
+
 
 
 
 def outliers_train(trainingSet_x):
-
     for colName in trainingSet_x.data.columns:
         print("\n\ncolName = ", colName)
 
         title = colName + ' before KNN'
 
-        #metodi diversi per il calcolo di outliers sia per train_x che per test_x
-        if find_method == "IQR":
+        print("\n\nOUTLIERS WITH ZSCORE\n")
+        res = dataPreparation.outZSCORE(trainingSet_x, None, colName)
+        mean = res[2]
+        std = res[3]
+        print("mean = ", mean, "\nstd = ", std)
 
-            print("\nOUTLIERS WITH IQR")
-            print("\n------ train ------")
-            dataPreparation.outIQR(trainingSet_x, "train" + title, colName)
+        # aggiungo mean e std al dizionario, che servirà nella parte successiva in test.py
+        dataPreparation.appendDict(colName, mean, trainingSet_x)
+        dataPreparation.appendDict(colName, std, trainingSet_x)
 
-            '''
-            fig1, ax = plt.subplots()
-            ax.set_title(colName + " before KNN")
-            ax.set_xticklabels(['TRAIN', 'TEST'])
-
-            ax.boxplot([train_x.dataColumn, test_x.dataColumn])
-            plt.show()
-            '''
-
-        if find_method == "ZSCORE":
-
-            print("\n\nOUTLIERS WITH ZSCORE\n")
-            print("\n------ train ------")
-            dataPreparation.outZSCORE(trainingSet_x, colName)
-
-
-        if substitute_method == "KNN":
-
-            # una volta che ho la lista di outliers, li sostituisco con il metodo KNN, che avrà come input sia
-            # il training che il test, poichè devo modificarli entrambi colonna x colonna
-            dataPreparation.knnDetectionTRAIN(trainingSet_x, None, colName)
-
-        else:
-            dataPreparation.outlierMean(trainingSet_x, None, colName)
+        # una volta che ho la lista di outliers, li sostituisco con il metodo KNN, che avrà come input sia
+        # il training che il test, poichè devo modificarli entrambi colonna x colonna
+        dataPreparation.knnDetectionTRAIN(trainingSet_x, None, colName)
 
         # sostuituiamo i risultati con gli outliers nel dataset originario
-        dataPreparation.substituteOutliers(trainingSet_x, colName)
+        substituteOutliersTrain(trainingSet_x, colName)
         # controllo outliers dopo aver applicato KNN
-        dataPreparation.checkOutliersAfterReplacement(trainingSet_x, colName)
+        checkOutliersAfterReplacementTrain(trainingSet_x, colName)
 
-        #print("dictionary outliers: ",outliersDict)
+        print("dictionary outliers: ", trainingSet_x.outliersDict)
 
-        '''
-        fig1, ax = plt.subplots()
-        ax.set_title(colName + " after KNN")
-        ax.set_xticklabels(["TRAIN", "TEST"])
 
-        ax.boxplot([train_x.dataColumn, test_x.dataColumn])
-        # fig1.tight_layout()
+def substituteOutliersTrain(trainingSet_x, colName):
+    if len(trainingSet_x.result) == 1:
+        for i in trainingSet_x.outliers:
+            trainingSet_x.data[colName][trainingSet_x.data[colName] == i] = (trainingSet_x.result[0][0])
+    if len(trainingSet_x.result) > 1:
+        for i in trainingSet_x.outliers:
+            res = dataPreparation.checkClosestOutlier(i, trainingSet_x.result)
+            trainingSet_x.data[colName][trainingSet_x.data[colName] == i] = (res)
 
-        plt.show()
-        '''
+
+def checkOutliersAfterReplacementTrain(trainingSet_x, colName):
+    outliers = dataPreparation.outZSCORE(trainingSet_x, None, colName)[0]
+    if len(outliers) == 0:
+        print(colName, ": Tutti gli outliers nel training set sono stati sostituiti\n\n")
+        return 0
+
 
 def saveDataInCSV(trainingSet_x):
-
     file_path = './preProcessingValues.csv'
 
     df = pd.DataFrame(trainingSet_x.outliersDict)
@@ -154,8 +134,9 @@ def saveDataInCSV(trainingSet_x):
     reader = csv.reader(f)
     mylist = list(reader)
     f.close()
-    mylist[1][0] = 'Replacement_NaN'
-    mylist[2][0] = 'Replacement_outliers'
+    mylist[1][0] = 'ZSCOREMean'
+    mylist[2][0] = 'ZSCOREStd'
+    mylist[3][0] = 'ReplacementOutliers'
     my_new_list = open(file_path, 'w', newline='')
     csv_writer = csv.writer(my_new_list)
     csv_writer.writerows(mylist)
@@ -164,14 +145,12 @@ def saveDataInCSV(trainingSet_x):
     preProcDataset = pd.read_csv('./preProcessingValues.csv')
 
 
-
-
 def main():
     datasetPath = './training_set.csv'
     dataset = pd.read_csv(datasetPath)
 
-    trainingSet_x = Dataset("trainingSet_x", None)    #feature x
-    trainingSet_y = Dataset("trainingSet_y", None)        #target y
+    trainingSet_x = Dataset("trainingSet_x", None)  # feature x
+    trainingSet_y = Dataset("trainingSet_y", None)  # target y
 
     # separiamo le features x dal target y
     train_x = dataset.iloc[:, 0:20].values
@@ -179,9 +158,9 @@ def main():
 
     preProcessing_train(trainingSet_x, trainingSet_y, train_x, train_y)
 
-    print(find_method, "---", substitute_method, "---", scaleType)
     clf = evaluation_train(trainingSet_x, trainingSet_y)
-    save_object(clf,'returned_clf.pkl')
+    dataPreparation.save_object(clf, 'returned_clf.pkl')
+
 
 if __name__ == '__main__':
     main()

@@ -30,20 +30,27 @@ from sklearn.utils import compute_class_weight
 from xgboost import XGBClassifier
 
 
-def cross(train_x, test_x, train_y, test_y, method):
-    if method == "IQR":
-        np.savetxt("train_x.data_FINALE_iqr.csv", train_x.data, delimiter=",")
-        np.savetxt("train_y.data_FINALE_iqr.csv", train_y.data, delimiter=",")
-    else:
+def cross(train_x, test_x, train_y, test_y, classifier):
 
-        np.savetxt("train_x.data_FINALE_z.csv", train_x.data, delimiter=",")
-        np.savetxt("train_y.data_FINALE_z.csv", train_y.data, delimiter=",")
+    if classifier == 'MLP':
+        clf = mlp(train_x, train_y, n_folds=5, metric='f1_macro')
+    if classifier == 'KNeighbors':
+        clf = kNeighbors(train_x, train_y, n_folds=5, metric='f1_macro')
+    if classifier == 'SVC':
+        clf = supportVector(train_x, train_y, n_folds=5, metric='f1_macro')
+    if classifier == 'DecisionTree':
+        clf = decisionTree(train_x, train_y, n_folds=5, metric='f1_macro')
+    if classifier == 'RandomForest':
+        clf = randomForest(train_x, train_y, n_folds=5, metric='f1_macro')
+    if classifier == 'QuadraticDiscriminantAnalysis':
+        clf = quadraticDiscriminantAnalysis(train_x, train_y, n_folds=5, metric='f1_macro')
 
-    # clf = randomForest(train_x, train_y)
-    clf = supportVector(train_x, train_y, n_folds=5, metric='f1_macro')
-    # clf = kNeighborsClassifier(train_x, train_y, n_folds=5, metric='f1_macro')
+    clf.fit(train_x.data, train_y.data.ravel())
+    best_parameters = clf.best_params_
+    print("\n\nbest_parameters " + classifier + ": ", best_parameters)
+    best_result = clf.best_score_
+    print("best_result " + classifier + ": ", best_result)
 
-    # clf = mlp(train_x, train_y, n_folds=5, metric='f1_macro')
     evaluate_classifier(clf, test_x, test_y)
 
 
@@ -59,11 +66,6 @@ def quadraticDiscriminantAnalysis(train_x, train_y, n_folds, metric):
 
     clf = model_selection.GridSearchCV(classifier, parameters, scoring='f1_macro', cv=5, n_jobs=-1)
 
-    clf.fit(train_x.data, train_y.data.ravel())
-    best_parameters = clf.best_params_
-    print("\n\nbest_parameters MLP : ", best_parameters)
-    best_result = clf.best_score_
-    print("best_result MLP: ", best_result)
     return clf
 
 
@@ -78,13 +80,6 @@ def kNeighbors(train_x, train_y, n_folds, metric):
         'algorithm': ['auto', 'ball_tree', 'kd_tree', 'brute']
     }
     clf = model_selection.GridSearchCV(classifier, param_grid, scoring='f1_macro', cv=n_folds, refit=True, n_jobs=-1)
-
-    print("KNeighborsClassifier")
-    clf.fit(train_x.data, train_y.data.ravel())
-    best_parameters = clf.best_params_
-    print("\n\nbest_parameters KNeighborsClassifier : ", best_parameters)
-    best_result = clf.best_score_
-    print("best_result KNeighborsClassifier: ", best_result)
 
     return clf
 
@@ -138,18 +133,8 @@ def randomForest(train_x, train_y):
         'bootstrap': [True, False]
     }
 
-    clf = model_selection.GridSearchCV(classifier,
-                                       param_grid=param_grid,
-                                       scoring='f1_macro',
-                                       cv=5,
-                                       refit=True,
-                                       n_jobs=-1)
+    clf = model_selection.GridSearchCV(classifier, param_grid=param_grid, scoring='f1_macro', cv=5, refit=True, n_jobs=-1)
 
-    clf.fit(train_x.data, train_y.data.ravel())
-    best_parameters = clf.best_params_
-    print("best_parameters RANDOM FOREST: ", best_parameters)
-    best_result = clf.best_score_
-    print("best_result RANDOM FOREST: ", best_result)
     return clf
 
 
@@ -178,13 +163,6 @@ def supportVector(train_x, train_y, n_folds, metric):
 
     clf = model_selection.GridSearchCV(svm.SVC(), param_grid, scoring=metric, cv=n_folds, refit=True)
 
-    print("\n\nSVM")
-    clf.fit(train_x.data, train_y.data.ravel())
-    best_parameters = clf.best_params_
-    print("\n\nbest_parameters SVM : ", best_parameters)
-    best_result = clf.best_score_
-    print("best_result SVM: ", best_result)
-
     return clf
 
 
@@ -200,11 +178,8 @@ def decisionTree(train_x, train_y, n_folds, metric):
     }
 
     clf = model_selection.GridSearchCV(classifier, param_grid, scoring=metric, cv=n_folds, refit=True)
-    clf.fit(train_x.data, train_y.data.ravel())
-    best_parameters = clf.best_params_
-    print("\n\nbest_parameters DECISION TREE : ", best_parameters)
-    best_result = clf.best_score_
-    print("best_result DECISION TREE: ", best_result)
+
+    return clf
 
 
 def mlp(train_x, train_y, n_folds, metric):
@@ -225,14 +200,6 @@ def mlp(train_x, train_y, n_folds, metric):
 
     clf = model_selection.GridSearchCV(classifier, param_grid, scoring=metric, cv=n_folds, refit=True, n_jobs=-1)
 
-    print("MLP")
-    print("max_iter = ", max_iter)
-    clf.fit(train_x.data, train_y.data.ravel())
-    best_parameters = clf.best_params_
-    print("\n\nbest_parameters MLP : ", best_parameters)
-    best_result = clf.best_score_
-    print("best_result MLP: ", best_result)
-
     return clf
 
 
@@ -241,12 +208,13 @@ def mlp(train_x, train_y, n_folds, metric):
 
 # utilizziamo ora il miglior modello ottenuto al termine della cross-validation per fare previsioni sui dati di test\n",
 def evaluate_classifier(classifier, test_x, test_y):
+
     pred_y = classifier.predict(test_x.data)
     confusion_matrix = metrics.confusion_matrix(test_y.data, pred_y)
     print(confusion_matrix)
     f1_score = metrics.f1_score(test_y.data, pred_y, average='macro')
     acc_score = metrics.accuracy_score(test_y.data, pred_y)
-    print('F1 without Resampling: ', f1_score)
+    print('F1: ', f1_score)
     print('Accuracy: ', acc_score)
     report = classification_report(test_y.data, pred_y)
     print(report)

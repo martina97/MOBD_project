@@ -7,6 +7,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from sklearn import model_selection
 from sklearn.decomposition import PCA
+from sklearn.impute import KNNImputer
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neural_network import MLPClassifier
 import dataPreparation
@@ -33,21 +34,48 @@ def preProcessing_test(testSet_x,testSet_y, test_x, test_y, preProcDataset):
     testSet_x.data = pd.DataFrame(testSet_x.data)
     testSet_y.data = pd.DataFrame(testSet_y.data, columns=['CLASS'])
 
+    print("testSet_x = ", testSet_x.data)
+    print("testSet_y = ", testSet_y.data)
+
     dataPreparation.changeColNames(testSet_x.data)
 
     #sostituisco i NaN con il valore della media della colonna calcolato precedentemente nel preProcessing
-    replaceNaN(testSet_x, preProcDataset)
+    replaceNaN(testSet_x)
 
     print("\n\ntest_x dopo nan: ", testSet_x.data)
     #sostituisco gli outliers con il valore calcolato precedentemente nel preProcessing
     outliersDetection(testSet_x, preProcDataset)
 
+    matrixTest(testSet_x, testSet_y)
+    #scaler
+    standardScalerTest(testSet_x)
+    #pca
+    pcaTest(testSet_x)
 
-def replaceNaN(testSet_x, preProcDataset):
+def matrixTest(testSet_x, testSet_y):
+    testSet_x.data = np.float64(testSet_x.data)
+    testSet_y.data = np.float64(testSet_y.data)
+    testSet_y.data = testSet_y.data.reshape((len(testSet_y.data), 1))
+
+
+
+def standardScalerTest(testSet_x):
+    scaler = getObject('scaler.pkl')
+    testSet_x.data = scaler.transform(testSet_x.data)
+
+def pcaTest(testSet_x):
+    pca = getObject('pca.pkl')
+    testSet_x.data = pca.transform(testSet_x.data)
+
+def replaceNaN(testSet_x):
 
     dataPreparation.getNaCount(testSet_x)
-    print("train x na count : ", testSet_x.naCount)
+    imputer = getObject('imputer.pkl')
+    imputed_test = imputer.transform(testSet_x.data)
+    testSet_x.data = pd.DataFrame(imputed_test, columns=testSet_x.data.columns)
+    dataPreparation.getNaCount(testSet_x)
 
+    '''
     for colName in testSet_x.data.columns:
         #print("\n\ncolName = ", colName)
         valore = float(preProcDataset[colName][0])
@@ -56,7 +84,7 @@ def replaceNaN(testSet_x, preProcDataset):
 
     dataPreparation.getNaCount(testSet_x)
     print("train x na count : ", testSet_x.naCount)
-
+    '''
 
 def outliersDetection(testSet_x, preProcDataset):
 
@@ -68,15 +96,41 @@ def outliersDetection(testSet_x, preProcDataset):
         #poichè sto leggendo da csv devo convertire  tutti i valori in float
         #testSet_x.dataColumn = np.array(testSet_x.dataColumn).astype(np.float)
 
-        dataPreparation.outZSCORE(testSet_x,colName)
-
+        outZScoreTest(testSet_x, colName, preProcDataset)
         #sostituisco gli outliers con il valore trovato precedentemente nel preProcessing
         replaceOutliers(testSet_x, colName,preProcDataset)
 
         #testSet_x.dataColumn = np.array(testSet_x.dataColumn).astype(np.float)
 
         # controllo outliers dopo averli sostituiti
-        checkOutliers(testSet_x, colName)
+        checkOutliers(testSet_x, colName, preProcDataset)
+
+def outZScoreTest(testSet_x, colName, preProcDataset):
+    testSet_x.dataColumn = np.array([])
+
+    for colElement in testSet_x.data[colName]:
+        testSet_x.dataColumn = np.append(testSet_x.dataColumn, colElement)
+
+    mean = float(preProcDataset[colName][0])
+    std = float(preProcDataset[colName][1])
+
+    print("mean = ", mean, "std = ", std)
+
+    count = 0
+    threshold = 3
+    testSet_x.outliers = []
+    for i in testSet_x.dataColumn:
+        z = (i - mean) / std
+
+        if z > threshold:
+            count = count + 1
+            testSet_x.outliers.append(i)
+            print("-- outlier n ", count, ":  ", testSet_x.outliers[count - 1])
+
+    return testSet_x.outliers
+
+
+
 
 
 def createDataColumn(dataset,colName):
@@ -91,17 +145,17 @@ def createDataColumn(dataset,colName):
 def replaceOutliers(testSet_x, colName,preProcDataset):
 
     for i in testSet_x.outliers:
-        valore = float(preProcDataset[colName][1])
+        valore = float(preProcDataset[colName][2])
         testSet_x.data[colName][testSet_x.data[colName] == i] = (valore)
 
 
-def checkOutliers(testSet_x, colName):
+def checkOutliers(testSet_x, colName, preProcDataset):
     #dataPreparation.createDataColumn(testSet_x, colName)
 
     # poichè sto leggendo da csv devo convertire  tutti i valori in float
     #testSet_x.dataColumn = np.array(testSet_x.dataColumn).astype(np.float)
     print("\n\n---")
-    outliers = dataPreparation.outZSCORE(testSet_x, colName)
+    outliers = outZScoreTest(testSet_x, colName, preProcDataset)
     if len(outliers) == 0:
         print(colName, ": KNN terminato, outliers sostituiti\n\n")
         return 0
@@ -114,11 +168,18 @@ def getClf():
         clf = pickle.load(input)
 
     best_parameters = clf.best_params_
-    print("\n\nbest_parameters MLP : ", best_parameters)
+    print("\n\nbest_parameters  : ", best_parameters)
     best_result = clf.best_score_
-    print("best_result MLP: ", best_result)
+    print("best_result : ", best_result)
 
     return clf
+
+def getObject(path):
+    with open (path,'rb') as input:
+        object = pickle.load(input)
+
+    return object
+
 
 def main():
 
@@ -132,7 +193,7 @@ def main():
     preProcDataset = pd.read_csv('./preProcessingValues.csv')
     print("preProcDataset", preProcDataset)
 
-    #print("ciaoooooooooooooo",preProcDataset['F1'][1][0])
+    print("ciaoooooooooooooo",preProcDataset['F1'][1], "\n\n")
     #print(testSet['CLASS'])
 
     testSet_x = Dataset("testSet_x", None)
@@ -144,7 +205,7 @@ def main():
 
     preProcessing_test(testSet_x,testSet_y, test_x, test_y,preProcDataset)
     clf = getClf()
-    crossValidation.evaluate_classifier(testSet_x, testSet_y)
+    crossValidation.evaluate_classifier(clf, testSet_x, testSet_y)
 
 
 
