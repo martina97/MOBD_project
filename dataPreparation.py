@@ -142,7 +142,7 @@ def Resampling(train_x, train_y, resampling_method):
     # summarize distribution
 
     # scommentare la riga di seguito se si vuole visualizzare il grafico a torta della distribuzione delle classi prima di resampling
-    plotGraphics.piePlot(train_y, "Before Resampling")
+    #plotGraphics.piePlot(train_y, "Before Resampling")
 
     # ---- UNDER-SAMPLING ------ #
     if resampling_method == "ClusterCentroids":
@@ -189,7 +189,7 @@ def Resampling(train_x, train_y, resampling_method):
     train_x.data, train_y.data = resample.fit_resample(train_x.data, train_y.data)
 
     # scommentare la riga di seguito se si vuole visualizzare il grafico a torta della distribuzione delle classi dopo resampling
-    plotGraphics.piePlot(train_y, "After Resampling with ALLKNN")
+    #plotGraphics.piePlot(train_y, "After Resampling with ALLKNN")
 
 
 def matrix(train_x, test_x, train_y, test_y):
@@ -317,14 +317,14 @@ def outlierDetection(train_x, test_x, find_method, substitute_method):
 
         # una volta individuati i valori con cui gli outliers devono essere sostituiti, si procede alla sostituzione
         # sia per il training set sia per il test set
-        substituteOutliers(train_x, colName, find_method, substitute_method)
+        substituteOutliers(train_x, colName, substitute_method)
 
-        substituteOutliers(test_x, colName, find_method, substitute_method)
+        substituteOutliers(test_x, colName, substitute_method)
 
         # controllo degli outliers dopo averli sostituiti
         checkOutliersAfterReplacement(train_x, test_x, colName, find_method)
 
-        # Scommentare se si vuole visualizzare l'istogramma della feature 'colName' prima e dopo KnnDetection
+        # Scommentare la seguente riga se si vuole visualizzare l'istogramma della feature 'colName' prima e dopo KnnDetection
         # printHist(train_xBefore, train_x, colName)
 
     # plotGraphics.printBoxplot(train_x, 'After Outliers Detection') #scommentare se si vuole visualizzare il boxlot
@@ -332,7 +332,7 @@ def outlierDetection(train_x, test_x, find_method, substitute_method):
 
 def outIQR(train_x, test_x, colName):
     """
-    Funzione che individua gli outliers con il metodo IQR.
+    Funzione che individua gli outliers della feature 'colName' con il metodo IQR.
     :param train_x: training set
     :param test_x: test set
     :param colName: colonna considerata
@@ -389,7 +389,7 @@ def createDataColumn(dataset, colName):
 
 def outZSCORE(train_x, test_x, colName):
     """
-    Funzione che individua gli outliers con il metodo ZSCORE.
+    Funzione che individua gli outliers della feature 'colName' con il metodo ZSCORE.
     :param train_x: training set
     :param test_x: test set
     :param colName: colonna considerata
@@ -397,7 +397,6 @@ def outZSCORE(train_x, test_x, colName):
     """
 
     # --------  TRAINING SET    -------- #
-    # print("\n------ train ------")
 
     train_x.dataColumn = np.array([])
 
@@ -428,7 +427,6 @@ def outZSCORE(train_x, test_x, colName):
     outliers_test = []
 
     if test_x is not None:
-        # print("\n------ test ------")
         test_x.dataColumn = np.array([])
 
         for colElement in test_x.data[colName]:
@@ -452,7 +450,7 @@ def outZSCORE(train_x, test_x, colName):
 def knnDetectionTRAIN(train_x, test_x, colName):
     """
     Data la lista di outliers di una colonna, calcola il valore con cui essi devono essere sostituiti,
-    e lo inserisce in train_x.result (colonna x colonna)
+    e lo inserisce in train_x.result.
     :param train_x: training set
     :param test_x: test set
     :param colName: colonna considerata
@@ -503,35 +501,23 @@ def knnDetectionTRAIN(train_x, test_x, colName):
         test_x.result = result
 
 
-def substituteOutliers(dataset, colName, find_method, substitute_method):
-    '''
-    # result = [[-2.71536111] [ 2.65369323]]
-    #   outliers =      2.8855370482008214
-    -- outlier n  2 :   2.9115293876047064
-    -- outlier n  3 :   3.1141434886609813
-    -- outlier n  4 :   -3.1585339273483033
-    -- outlier n  5 :   -3.3372981576055034
-    -- outlier n  6 :   -3.3824899824206835
-    '''
+def substituteOutliers(dataset, colName, substitute_method):
+    """
+    Sostituisce, in base al metodo dichiarato con la stringa 'substitute_method', gli outliers presenti nella colonna
+    colName.
+    :param dataset: dataset interessato
+    :param colName: colonna interessata
+    :param substitute_method: stringa che rappresenta il metodo con cui sostituire gli outliers nel dataset
+    :return: None
+    """
     if substitute_method == "KNN":
-        if find_method == "IQR":
-            if len(dataset.result) == 1:
-                for i in dataset.outliers:
-                    dataset.data[colName][dataset.data[colName] == i] = (dataset.result[0][0])
-            # sostuituiamo i risultati con gli outliers nel dataset originario
-            if len(dataset.result) > 1:
-                for i in dataset.outliers:
-                    res = checkClosestOutlier(i, dataset.result)
-                    dataset.data[colName][dataset.data[colName] == i] = (res)
-
-        if find_method == "ZSCORE":
-            if len(dataset.result) == 1:
-                for i in dataset.outliers:
-                    dataset.data[colName][dataset.data[colName] == i] = (dataset.result[0][0])
-            if len(dataset.result) > 1:
-                for i in dataset.outliers:
-                    res = checkClosestOutlier(i, dataset.result)
-                    dataset.data[colName][dataset.data[colName] == i] = (res)
+        if len(dataset.result) == 1:
+            for i in dataset.outliers:
+                dataset.data[colName][dataset.data[colName] == i] = (dataset.result[0][0])
+        if len(dataset.result) > 1:
+            for i in dataset.outliers:
+                res = checkClosestOutlier(i, dataset.result)
+                dataset.data[colName][dataset.data[colName] == i] = (res)
 
     if substitute_method == "MEAN":
         for i in dataset.outliers:
@@ -562,10 +548,10 @@ def checkClosestOutlier(outlier, resultList):
 
 def checkOutliersAfterReplacement(train_x, test_x, colName, find_method):
     """
-   Funzione che, per ogni colonna, controlla gli outliers dopo averli sostituiti
+   Controlla gli outliers appartenenti alla feature 'colName' dopo averli sostituiti
    :param train_x: training set
    :param test_x: test set
-   :param colName: colonna desiderata
+   :param colName: colonna (feature) interessata
    :param find_method: metodo per individuare gli outliers
    :return: None
    """
@@ -588,7 +574,7 @@ def checkOutliersAfterReplacement(train_x, test_x, colName, find_method):
 
 def changeColNames(dataset):
     """
-    Funzione che rinomina le colonne del dataset
+    Rinomina le colonne del dataset.
     :param dataset: dataset
     :return: None
     """
@@ -601,17 +587,24 @@ def changeColNames(dataset):
 
 
 def appendDict(key, value, train_x):
+    """
+    Inserisce nel dizionario i valori associati alla chiave 'key'.
+    :param key: chiave
+    :param value: valore da inserire
+    :param train_x:  training set
+    :return: None
+    """
     if key in train_x.outliersDict:
-        # append the new number to the existing array at this slot
+        # Se la chiave è già presente del dict, aggiunge il nuovo valore associato alla chiave (senza sostituire quelli esistenti)
         train_x.outliersDict[key].append(value)
     else:
-        # create a new array in this slot
+        # Se la chiave non è presente nel dict, si inserisce la chiave e il valore associato
         train_x.outliersDict[key] = [value]
 
 
 def naMean(train_x, test_x):
     """
-    Funzione che sostuisce i NaN con la media per ogni colonna.
+    Sostuisce i NaN con la media per ogni colonna.
     :param train_x: training set
     :param test_x: test set
     :return: None
@@ -634,7 +627,7 @@ def naMean(train_x, test_x):
 
 def naKNN(train_x, test_x):
     """
-    Funzione che sostituisce i valori mancanti nel training set e nel test set con KNNImputer().
+    Sostituisce i valori mancanti nel training set e nel test set con KNNImputer().
     :param train_x: training set
     :param test_x: test set
     :return: None
@@ -654,7 +647,7 @@ def naKNN(train_x, test_x):
 
 def getNaCount(dataset):
     """
-    Funzione che conta il numero di valori mancanti all'interno del dataset.
+    Conta il numero di valori mancanti all'interno del dataset.
     :param dataset: dataset
     :return: numero di valori mancanti
     """
@@ -669,6 +662,12 @@ def getNaCount(dataset):
 
 
 def save_object(obj, filename):
+    """
+    Salva l'oggetto obj in un file. Utile per la parte di valutazione del progetto.
+    :param obj: oggetto da salvare
+    :param filename: nome del file desiderato
+    :return: None
+    """
     with open(filename, 'wb') as output:  # Overwrites any existing file.
         pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
 
@@ -698,7 +697,7 @@ def main():
 
     preProcessing(train_x, test_x, train_y, test_y, x, y, na_method, find_method, substitute_method, scale_type,
                   resampling_method)
-    print(find_method, "---", substitute_method, "---", scale_type, "--- ALLKNN", classifier)
+    print(find_method, "---", substitute_method, "---", scale_type, "---", resampling_method, "---", classifier)
 
     # cross validation e scelta degli iperparametri migliori
     crossValidation.cross(train_x, test_x, train_y, test_y, classifier)

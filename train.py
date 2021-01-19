@@ -33,13 +33,19 @@ def preProcessing_train(trainingSet_x, trainingSet_y, train_x, train_y):
     # sostituisco gli outliers nel training set
     outliers_train(trainingSet_x)
 
+    # conversione dei DataFrame in vettori 2D
     dataPreparation.matrix(trainingSet_x, None, trainingSet_y, None)
+
+    # scaling del training set
     dataPreparation.standardScaler(trainingSet_x, None)
 
+    # Principal Component Analysis
     dataPreparation.principalComponentAnalysis(trainingSet_x, None)
 
+    # resampling
     dataPreparation.Resampling(trainingSet_x, trainingSet_y, "AllKNN")
 
+    # salvataggio del dizionario trainingSet_x.outliersDict in un file (utile per la valutazione successiva)
     dataPreparation.save_object(trainingSet_x.outliersDict, 'dict.pkl')
 
 
@@ -73,7 +79,7 @@ def outliers_train(trainingSet_x):
 
 def substituteOutliersTrain(trainingSet_x, colName):
     """
-    Sostituzione degli outliers colonna x colonna
+    Sostituzione degli outliers appartenenti alla colonna 'colName'
     :param trainingSet_x: training set x
     :param colName: colonna interessata
     """
